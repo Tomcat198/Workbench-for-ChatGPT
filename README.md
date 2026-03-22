@@ -69,6 +69,8 @@ This project is **not** the official continuation of the original repository.
 
 ![界面预览](./image/icon_128.png)
 
+![界面预览](./image/icon_32.png)
+
 ---
 
 ## 🚀 安装与使用 | Installation & Quick Start 🛠️
