@@ -1,7 +1,7 @@
 /*
  * ChatGPT Conversation Toolkit - Prompt library
  */
-// ============ Prompt 指令库 ============
+// ============ Prompt Library ============
 
 const createPromptId = () => {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -629,7 +629,24 @@ const refreshPromptLocalization = () => {
 
     const empty = modal.querySelector("#chatgpt-toolkit-prompt-empty");
     if (empty instanceof HTMLElement) {
-      empty.textContent = t("prompt.empty");
+      const emptyTitle = empty.querySelector(".chatgpt-toolkit-prompt-empty-title");
+      const emptyHint = empty.querySelector(".chatgpt-toolkit-prompt-empty-hint");
+      if (emptyTitle instanceof HTMLElement) {
+        emptyTitle.textContent = t("prompt.empty");
+      }
+      if (emptyHint instanceof HTMLElement) {
+        emptyHint.textContent = t("prompt.empty");
+      }
+    }
+
+    const subtitle = modal.querySelector('[data-prompt-label="subtitle"]');
+    if (subtitle instanceof HTMLElement) {
+      subtitle.textContent = t("prompt.empty");
+    }
+
+    const filtersTitle = modal.querySelector('[data-prompt-label="filters"]');
+    if (filtersTitle instanceof HTMLElement) {
+      filtersTitle.textContent = t("toolbar.searchSection");
     }
 
     const add = modal.querySelector('[data-prompt-action="add"]');
@@ -769,25 +786,34 @@ const ensurePromptModal = () => {
     <div class="chatgpt-toolkit-prompt-backdrop" data-prompt-action="close"></div>
     <div class="chatgpt-toolkit-prompt-panel" role="dialog" aria-modal="true" aria-label="${t("prompt.modalAria")}">
       <div class="chatgpt-toolkit-prompt-header">
-        <strong>${t("prompt.title")}</strong>
+        <div class="chatgpt-toolkit-prompt-header-main">
+          <strong>${t("prompt.title")}</strong>
+          <span class="chatgpt-toolkit-prompt-subtitle" data-prompt-label="subtitle">${t("prompt.empty")}</span>
+        </div>
         <button type="button" class="chatgpt-toolkit-prompt-close" data-prompt-action="close">${t("prompt.close")}</button>
       </div>
       <div id="${PROMPT_TOAST_ID}" class="chatgpt-toolkit-prompt-toast" aria-live="polite"></div>
       <div class="chatgpt-toolkit-prompt-filters">
-        <input id="chatgpt-toolkit-prompt-search" type="text" placeholder="${t("prompt.searchPlaceholder")}" />
-        <select id="chatgpt-toolkit-prompt-category-filter">
-          <option value="all">${t("prompt.allCategories")}</option>
-        </select>
-        <select id="chatgpt-toolkit-prompt-sort">
-          <option value="updated-desc">${t("prompt.sortUpdatedDesc")}</option>
-          <option value="updated-asc">${t("prompt.sortUpdatedAsc")}</option>
-          <option value="title-asc">${t("prompt.sortTitleAsc")}</option>
-          <option value="title-desc">${t("prompt.sortTitleDesc")}</option>
-          <option value="category-asc">${t("prompt.sortCategoryAsc")}</option>
-        </select>
+        <p class="chatgpt-toolkit-prompt-filters-title" data-prompt-label="filters">${t("toolbar.searchSection")}</p>
+        <div class="chatgpt-toolkit-prompt-filters-grid">
+          <input id="chatgpt-toolkit-prompt-search" type="text" placeholder="${t("prompt.searchPlaceholder")}" />
+          <select id="chatgpt-toolkit-prompt-category-filter">
+            <option value="all">${t("prompt.allCategories")}</option>
+          </select>
+          <select id="chatgpt-toolkit-prompt-sort">
+            <option value="updated-desc">${t("prompt.sortUpdatedDesc")}</option>
+            <option value="updated-asc">${t("prompt.sortUpdatedAsc")}</option>
+            <option value="title-asc">${t("prompt.sortTitleAsc")}</option>
+            <option value="title-desc">${t("prompt.sortTitleDesc")}</option>
+            <option value="category-asc">${t("prompt.sortCategoryAsc")}</option>
+          </select>
+        </div>
       </div>
       <div id="chatgpt-toolkit-prompt-list" class="chatgpt-toolkit-prompt-list"></div>
-      <p id="chatgpt-toolkit-prompt-empty" class="chatgpt-toolkit-prompt-empty">${t("prompt.empty")}</p>
+      <p id="chatgpt-toolkit-prompt-empty" class="chatgpt-toolkit-prompt-empty">
+        <span class="chatgpt-toolkit-prompt-empty-title">${t("prompt.empty")}</span>
+        <span class="chatgpt-toolkit-prompt-empty-hint">${t("prompt.empty")}</span>
+      </p>
       <div class="chatgpt-toolkit-prompt-editor">
         <input id="chatgpt-toolkit-prompt-add-title" type="text" placeholder="${t("prompt.titlePlaceholder")}" />
         <input id="chatgpt-toolkit-prompt-add-category" type="text" placeholder="${t("prompt.categoryPlaceholder")}" />
@@ -795,7 +821,7 @@ const ensurePromptModal = () => {
         <button type="button" class="chatgpt-toolkit-prompt-add" data-prompt-action="add">${t("prompt.add")}</button>
       </div>
       <div class="chatgpt-toolkit-prompt-footer">
-        <span id="chatgpt-toolkit-prompt-count">${t("prompt.count", { visible: 0, total: 0 })}</span>
+        <span id="chatgpt-toolkit-prompt-count" class="chatgpt-toolkit-prompt-footer-count">${t("prompt.count", { visible: 0, total: 0 })}</span>
         <div class="chatgpt-toolkit-prompt-footer-actions">
           <button type="button" data-prompt-action="import">${t("prompt.importJson")}</button>
           <button type="button" data-prompt-action="export">${t("prompt.exportJson")}</button>

@@ -1,17 +1,61 @@
 /*
  * ChatGPT Conversation Toolkit - Toolbar and drag behavior
  */
+const FLOATING_EDGE_MARGIN = 16;
+const TOOLBAR_DRAG_MARGIN = 10;
+const TOOLBAR_DRAG_THRESHOLD = 5;
+
+const clampValue = (value, min, max) => Math.min(Math.max(value, min), max);
+
+const clampFloatingButtonPosition = (left, top, width, height) => {
+  const maxLeft = Math.max(FLOATING_EDGE_MARGIN, window.innerWidth - width - FLOATING_EDGE_MARGIN);
+  const maxTop = Math.max(FLOATING_EDGE_MARGIN, window.innerHeight - height - FLOATING_EDGE_MARGIN);
+  return {
+    left: clampValue(left, FLOATING_EDGE_MARGIN, maxLeft),
+    top: clampValue(top, FLOATING_EDGE_MARGIN, maxTop),
+  };
+};
+
+const getEdgePlacementDistance = (rect) => {
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const distances = {
+    left: rect.left,
+    right: viewportWidth - rect.right,
+    top: rect.top,
+    bottom: viewportHeight - rect.bottom,
+  };
+
+  return Object.entries(distances).reduce((closest, entry) => {
+    if (!closest || entry[1] < closest[1]) {
+      return entry;
+    }
+    return closest;
+  }, null)?.[0] || "right";
+};
+
 const getSnappedFloatingButtonPlacement = (left, top, width, height) => {
   const viewportWidth = window.innerWidth;
   const viewportHeight = window.innerHeight;
-  const margin = 16;
-  const centerX = left + width / 2;
-  const edge = centerX <= viewportWidth / 2 ? "left" : "right";
-  const nextTop = clampFloatingButtonPosition(left, top, width, height).top;
+  const clamped = clampFloatingButtonPosition(left, top, width, height);
+  const rect = {
+    left: clamped.left,
+    top: clamped.top,
+    right: clamped.left + width,
+    bottom: clamped.top + height,
+  };
+  const edge = getEdgePlacementDistance(rect);
+
+  if (edge === "left" || edge === "right") {
+    return {
+      edge,
+      offset: Math.round(clampValue(clamped.top, FLOATING_EDGE_MARGIN, viewportHeight - height - FLOATING_EDGE_MARGIN)),
+    };
+  }
 
   return {
     edge,
-    top: Math.min(nextTop, Math.max(margin, viewportHeight - height - margin)),
+    offset: Math.round(clampValue(clamped.left, FLOATING_EDGE_MARGIN, viewportWidth - width - FLOATING_EDGE_MARGIN)),
   };
 };
 
@@ -20,21 +64,61 @@ const applySnappedFloatingButtonPlacement = (button, placement, savePosition = t
     return;
   }
 
+  const width = button.offsetWidth || 48;
+  const height = button.offsetHeight || 48;
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+
+  const verticalOffset = clampValue(
+    Number(placement.offset) || FLOATING_EDGE_MARGIN,
+    FLOATING_EDGE_MARGIN,
+    Math.max(FLOATING_EDGE_MARGIN, viewportHeight - height - FLOATING_EDGE_MARGIN),
+  );
+  const horizontalOffset = clampValue(
+    Number(placement.offset) || FLOATING_EDGE_MARGIN,
+    FLOATING_EDGE_MARGIN,
+    Math.max(FLOATING_EDGE_MARGIN, viewportWidth - width - FLOATING_EDGE_MARGIN),
+  );
+
   button.style.transform = "";
-  if (placement.edge === "left") {
-    button.style.left = "16px";
-    button.style.right = "auto";
-  } else {
-    button.style.left = "auto";
-    button.style.right = "16px";
-  }
-  button.style.top = `${Math.round(placement.top)}px`;
+  button.style.left = "auto";
+  button.style.right = "auto";
+  button.style.top = "auto";
   button.style.bottom = "auto";
 
+  switch (placement.edge) {
+    case "left":
+      button.style.left = `${FLOATING_EDGE_MARGIN}px`;
+      button.style.top = `${Math.round(verticalOffset)}px`;
+      break;
+    case "right":
+      button.style.right = `${FLOATING_EDGE_MARGIN}px`;
+      button.style.top = `${Math.round(verticalOffset)}px`;
+      break;
+    case "top":
+      button.style.top = `${FLOATING_EDGE_MARGIN}px`;
+      button.style.left = `${Math.round(horizontalOffset)}px`;
+      break;
+    case "bottom":
+      button.style.bottom = `${FLOATING_EDGE_MARGIN}px`;
+      button.style.left = `${Math.round(horizontalOffset)}px`;
+      break;
+    default:
+      button.style.right = `${FLOATING_EDGE_MARGIN}px`;
+      button.style.top = `${Math.round(verticalOffset)}px`;
+      break;
+  }
+
   if (savePosition) {
+    const normalized = {
+      edge: ["left", "right", "top", "bottom"].includes(placement.edge) ? placement.edge : "right",
+      offset: Math.round(placement.edge === "left" || placement.edge === "right" ? verticalOffset : horizontalOffset),
+    };
+    state.minimizedButtonPositionV2 = normalized;
+    saveMinimizedPositionV2(normalized);
     saveMinimizedPosition({
-      edge: placement.edge,
-      top: Math.round(placement.top),
+      edge: normalized.edge === "left" || normalized.edge === "right" ? normalized.edge : "right",
+      top: normalized.edge === "left" || normalized.edge === "right" ? normalized.offset : FLOATING_EDGE_MARGIN,
     });
   }
 };
@@ -46,22 +130,94 @@ const snapToEdge = (button, savePosition = true) => {
 };
 
 const ensureButtonVisible = (button) => {
-  const rect = button.getBoundingClientRect();
-  const viewportWidth = window.innerWidth;
-  const viewportHeight = window.innerHeight;
-  const margin = 16;
-
-  let needsAdjustment = false;
-
-  // 检查是否超出可视区域
-  if (rect.left < 0 || rect.right > viewportWidth ||
-    rect.top < 0 || rect.bottom > viewportHeight) {
-    needsAdjustment = true;
+  if (!(button instanceof HTMLElement)) {
+    return;
   }
 
-  if (needsAdjustment) {
-    snapToEdge(button, true);
+  const placement = state.minimizedButtonPositionV2 || loadMinimizedPositionV2();
+  if (placement) {
+    applySnappedFloatingButtonPlacement(button, placement, true);
+    return;
   }
+
+  snapToEdge(button, true);
+};
+
+const clampToolbarPosition = (left, top, width, height) => {
+  const maxLeft = Math.max(TOOLBAR_DRAG_MARGIN, window.innerWidth - width - TOOLBAR_DRAG_MARGIN);
+  const maxTop = Math.max(TOOLBAR_DRAG_MARGIN, window.innerHeight - height - TOOLBAR_DRAG_MARGIN);
+  return {
+    left: clampValue(left, TOOLBAR_DRAG_MARGIN, maxLeft),
+    top: clampValue(top, TOOLBAR_DRAG_MARGIN, maxTop),
+  };
+};
+
+const applyToolbarPosition = (toolbar, left, top, savePosition = false) => {
+  if (!(toolbar instanceof HTMLElement)) {
+    return;
+  }
+  const rect = toolbar.getBoundingClientRect();
+  const width = rect.width || toolbar.offsetWidth || 280;
+  const height = rect.height || toolbar.offsetHeight || 420;
+  const next = clampToolbarPosition(left, top, width, height);
+  toolbar.style.right = "auto";
+  toolbar.style.bottom = "auto";
+  toolbar.style.left = `${Math.round(next.left)}px`;
+  toolbar.style.top = `${Math.round(next.top)}px`;
+  toolbar.style.transform = "";
+
+  if (savePosition) {
+    state.toolbarPosition = { left: Math.round(next.left), top: Math.round(next.top) };
+    saveToolbarPosition(state.toolbarPosition);
+  }
+};
+
+const applyStoredToolbarPosition = (toolbar) => {
+  if (!(toolbar instanceof HTMLElement)) {
+    return;
+  }
+  const stored = loadToolbarPosition();
+  if (!stored) {
+    return;
+  }
+  state.toolbarPosition = stored;
+  applyToolbarPosition(toolbar, stored.left, stored.top, false);
+};
+
+const ensureToolbarVisible = () => {
+  const toolbar = document.getElementById(TOOLKIT_ID);
+  if (!(toolbar instanceof HTMLElement)) {
+    return;
+  }
+  const rect = toolbar.getBoundingClientRect();
+  const next = clampToolbarPosition(rect.left, rect.top, rect.width || toolbar.offsetWidth || 280, rect.height || toolbar.offsetHeight || 420);
+  applyToolbarPosition(toolbar, next.left, next.top, Boolean(state.toolbarPosition));
+};
+const setToolbarVisibility = (isVisible, options = {}) => {
+  const { clearSearch = false, closeSettings = false } = options;
+  const toolbar = document.getElementById(TOOLKIT_ID);
+  const minimized = ensureMinimizedButton();
+  if (!(toolbar instanceof HTMLElement) || !(minimized instanceof HTMLButtonElement)) {
+    return;
+  }
+
+  minimized.classList.add("is-visible");
+
+  if (isVisible) {
+    toolbar.classList.remove("is-hidden");
+    state.isMinimized = false;
+    return;
+  }
+
+  if (clearSearch && typeof resetSearchSession === "function") {
+    resetSearchSession({ reason: "panel-minimize", clearInput: true });
+  }
+  if (closeSettings && typeof closeSettingsModal === "function") {
+    closeSettingsModal();
+  }
+
+  toolbar.classList.add("is-hidden");
+  state.isMinimized = true;
 };
 
 const getToolbarLanguageOptionsMarkup = () => {
@@ -336,74 +492,20 @@ const buildMinimizedButton = () => {
 };
 
 const applyMinimizedPosition = (button) => {
-  const position = loadMinimizedPosition();
+  const position = loadMinimizedPositionV2();
   if (!position) {
-    // 默认位置：右边缘
-    snapToEdge(button, false);
+    snapToEdge(button, true);
     return;
   }
 
-  const viewportWidth = window.innerWidth;
-  const viewportHeight = window.innerHeight;
-  const buttonHeight = button.offsetHeight || 48;
-  const margin = 16;
-
-  // 新格式：edge + top
-  if (position.edge && typeof position.top === "number") {
-    let top = position.top;
-
-    // 确保 top 在可视区域内
-    if (top < margin) {
-      top = margin;
-    } else if (top + buttonHeight > viewportHeight - margin) {
-      top = viewportHeight - buttonHeight - margin;
-    }
-
-    if (position.edge === 'left') {
-      button.style.left = `${margin}px`;
-      button.style.right = 'auto';
-    } else {
-      button.style.left = 'auto';
-      button.style.right = `${margin}px`;
-    }
-    button.style.top = `${top}px`;
-    button.style.bottom = 'auto';
-    return;
-  }
-
-  // 兼容旧格式：left + top（迁移到新格式）
-  if (typeof position.left === "number" && typeof position.top === "number") {
-    let top = position.top;
-
-    // 确保 top 在可视区域内
-    if (top < margin) {
-      top = margin;
-    } else if (top + buttonHeight > viewportHeight - margin) {
-      top = viewportHeight - buttonHeight - margin;
-    }
-
-    // 判断应该贴哪个边
-    const centerX = position.left + 24; // 按钮宽度的一半
-    const edge = centerX <= viewportWidth / 2 ? 'left' : 'right';
-
-    if (edge === 'left') {
-      button.style.left = `${margin}px`;
-      button.style.right = 'auto';
-    } else {
-      button.style.left = 'auto';
-      button.style.right = `${margin}px`;
-    }
-    button.style.top = `${top}px`;
-    button.style.bottom = 'auto';
-
-    // 保存为新格式
-    saveMinimizedPosition({ edge, top });
-  }
+  state.minimizedButtonPositionV2 = position;
+  applySnappedFloatingButtonPlacement(button, position, true);
 };
 
 const ensureMinimizedButton = () => {
   const existingButton = document.getElementById(MINIMIZED_ID);
   if (existingButton) {
+    existingButton.classList.add("is-visible");
     return existingButton;
   }
 
@@ -412,59 +514,27 @@ const ensureMinimizedButton = () => {
   }
 
   const button = buildMinimizedButton();
+  button.classList.add("is-visible");
   document.body.appendChild(button);
   applyMinimizedPosition(button);
-  enableDrag(button);
+  enableMinimizedButtonDrag(button);
   syncToolkitTheme();
   return button;
 };
 
 const minimizeToolbar = () => {
-  const toolbar = document.getElementById(TOOLKIT_ID);
-  const minimized = ensureMinimizedButton();
-  if (!toolbar || !minimized) {
-    return;
-  }
-  if (typeof resetSearchSession === "function") {
-    resetSearchSession({ reason: "panel-minimize", clearInput: true });
-  }
-  if (typeof closeSettingsModal === "function") {
-    closeSettingsModal();
-  }
-  toolbar.classList.add("is-hidden");
-  minimized.classList.add("is-visible");
-  state.isMinimized = true;
+  setToolbarVisibility(false, { clearSearch: true, closeSettings: true });
 };
 
 const expandToolbar = () => {
-  const toolbar = document.getElementById(TOOLKIT_ID);
-  const minimized = document.getElementById(MINIMIZED_ID);
-  if (!toolbar || !minimized) {
-    return;
-  }
-  toolbar.classList.remove("is-hidden");
-  minimized.classList.remove("is-visible");
-  state.isMinimized = false;
+  setToolbarVisibility(true);
 };
 
-const applyFloatingButtonPosition = (button, left, top) => {
-  button.style.left = `${Math.round(left)}px`;
-  button.style.top = `${Math.round(top)}px`;
-  button.style.right = "auto";
-  button.style.bottom = "auto";
+const toggleToolbarVisibility = () => {
+  setToolbarVisibility(state.isMinimized);
 };
 
-const clampFloatingButtonPosition = (left, top, width, height) => {
-  const margin = 8;
-  const maxLeft = Math.max(margin, window.innerWidth - width - margin);
-  const maxTop = Math.max(margin, window.innerHeight - height - margin);
-  return {
-    left: Math.min(Math.max(left, margin), maxLeft),
-    top: Math.min(Math.max(top, margin), maxTop),
-  };
-};
-
-const enableDrag = (button) => {
+const enableMinimizedButtonDrag = (button) => {
   const DRAG_THRESHOLD = 5; // 拖拽阈值：超过5px才判定为拖拽
   let isDragging = false;
   let moved = false;
@@ -584,7 +654,133 @@ const enableDrag = (button) => {
       suppressClick = false;
       return;
     }
-    expandToolbar();
+    toggleToolbarVisibility();
+  });
+};
+
+const enableToolbarDrag = (toolbar) => {
+  if (!(toolbar instanceof HTMLElement) || toolbar.dataset.dragEnabled === "1") {
+    return;
+  }
+
+  const header = toolbar.querySelector(".chatgpt-toolkit-header");
+  if (!(header instanceof HTMLElement)) {
+    return;
+  }
+
+  toolbar.dataset.dragEnabled = "1";
+  let isDragging = false;
+  let moved = false;
+  let startX = 0;
+  let startY = 0;
+  let startLeft = 0;
+  let startTop = 0;
+  let pendingLeft = 0;
+  let pendingTop = 0;
+  let dragBounds = null;
+  let baseTransform = "";
+
+  const dragController = createRafDragController(({ translateX, translateY, transform }) => {
+    applyDragTransform(toolbar, translateX, translateY, transform);
+  });
+
+  const onPointerMove = (event) => {
+    if (!isDragging) {
+      return;
+    }
+
+    const deltaX = event.clientX - startX;
+    const deltaY = event.clientY - startY;
+
+    if (!moved) {
+      const distanceSquared = deltaX * deltaX + deltaY * deltaY;
+      if (distanceSquared < TOOLBAR_DRAG_THRESHOLD * TOOLBAR_DRAG_THRESHOLD) {
+        return;
+      }
+      moved = true;
+      toolbarDragState.dragging = true;
+      toolbar.classList.add("is-dragging");
+      toolbar.style.willChange = "transform";
+      document.documentElement.style.userSelect = "none";
+    }
+
+    if (!dragBounds) {
+      return;
+    }
+
+    const nextLeft = clampValue(startLeft + deltaX, TOOLBAR_DRAG_MARGIN, dragBounds.maxLeft);
+    const nextTop = clampValue(startTop + deltaY, TOOLBAR_DRAG_MARGIN, dragBounds.maxTop);
+    pendingLeft = nextLeft;
+    pendingTop = nextTop;
+
+    dragController.schedule({
+      translateX: nextLeft - startLeft,
+      translateY: nextTop - startTop,
+      transform: baseTransform,
+    });
+  };
+
+  const stopDragging = () => {
+    if (!isDragging) {
+      return;
+    }
+
+    isDragging = false;
+    toolbarDragState.pointerDown = false;
+    document.removeEventListener("pointermove", onPointerMove);
+    document.removeEventListener("pointerup", stopDragging);
+    document.removeEventListener("pointercancel", stopDragging);
+    dragController.cancel();
+
+    if (moved) {
+      applyToolbarPosition(toolbar, pendingLeft, pendingTop, true);
+    } else {
+      resetDragTransform(toolbar, baseTransform);
+    }
+
+    toolbarDragState.dragging = false;
+    toolbar.classList.remove("is-dragging");
+    toolbar.style.willChange = "";
+    document.documentElement.style.userSelect = "";
+    dragBounds = null;
+    baseTransform = "";
+    moved = false;
+  };
+
+  header.style.touchAction = "none";
+  header.addEventListener("pointerdown", (event) => {
+    const target = event.target;
+    if (event.button !== 0 || (target instanceof Element && target.closest("button, input, select, textarea, a"))) {
+      return;
+    }
+
+    event.preventDefault();
+    const rect = toolbar.getBoundingClientRect();
+    const width = rect.width || toolbar.offsetWidth || 280;
+    const height = rect.height || toolbar.offsetHeight || 420;
+
+    dragBounds = {
+      maxLeft: Math.max(TOOLBAR_DRAG_MARGIN, window.innerWidth - width - TOOLBAR_DRAG_MARGIN),
+      maxTop: Math.max(TOOLBAR_DRAG_MARGIN, window.innerHeight - height - TOOLBAR_DRAG_MARGIN),
+    };
+
+    isDragging = true;
+    toolbarDragState.pointerDown = true;
+    startX = event.clientX;
+    startY = event.clientY;
+    startLeft = rect.left;
+    startTop = rect.top;
+    pendingLeft = rect.left;
+    pendingTop = rect.top;
+    moved = false;
+
+    baseTransform = toolbar.style.transform && toolbar.style.transform !== "none"
+      ? toolbar.style.transform
+      : "";
+    resetDragTransform(toolbar, baseTransform);
+    document.addEventListener("pointermove", onPointerMove);
+    document.addEventListener("pointerup", stopDragging);
+    document.addEventListener("pointercancel", stopDragging);
   });
 };
 const attachToolbar = () => {
@@ -597,6 +793,8 @@ const attachToolbar = () => {
   observeThemeOnBodyIfNeeded();
   const toolbar = buildToolbar();
   document.body.appendChild(toolbar);
+  applyStoredToolbarPosition(toolbar);
+  enableToolbarDrag(toolbar);
   updateStatusByKey("toolbar.ready", "info");
   updateTimelineToggleButton();
   ensureMinimizedButton();

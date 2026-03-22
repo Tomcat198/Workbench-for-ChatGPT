@@ -1108,30 +1108,142 @@ const scheduleSettledFolderRefresh = () => {
   }, 96);
 };
 
+const ensureFolderDialogTheme = (dialog) => {
+  if (!(dialog instanceof HTMLElement)) {
+    return;
+  }
+
+  if (typeof detectChatGPTTheme === "function") {
+    dialog.setAttribute(THEME_ATTR, detectChatGPTTheme());
+    return;
+  }
+
+  const toolbar = document.getElementById(TOOLKIT_ID);
+  const theme = toolbar?.getAttribute(THEME_ATTR) || "light";
+  dialog.setAttribute(THEME_ATTR, theme);
+};
+
+const closeFolderDialog = () => {
+  const dialog = document.getElementById(FOLDER_DIALOG_ID);
+  if (dialog instanceof HTMLElement) {
+    dialog.remove();
+  }
+};
+
+const showFolderDialog = ({
+  title,
+  message = "",
+  value = "",
+  placeholder = "",
+  confirmText,
+  variant = "input",
+  onConfirm,
+}) => {
+  closeFolderDialog();
+
+  const dialog = document.createElement("div");
+  dialog.id = FOLDER_DIALOG_ID;
+  dialog.className = "chatgpt-toolkit-folder-dialog";
+  dialog.tabIndex = -1;
+  dialog.innerHTML = `
+    <div class="chatgpt-toolkit-folder-dialog-backdrop" data-folder-dialog-action="cancel"></div>
+    <div class="chatgpt-toolkit-folder-dialog-panel" role="dialog" aria-modal="true" aria-label="${title}">
+      <div class="chatgpt-toolkit-folder-dialog-header">
+        <strong class="chatgpt-toolkit-folder-dialog-title">${title}</strong>
+      </div>
+      ${message ? `<p class="chatgpt-toolkit-folder-dialog-message">${message}</p>` : ""}
+      ${variant === "input" ? `<input type="text" class="chatgpt-toolkit-folder-dialog-input" value="${value.replace(/\"/g, "&quot;")}" placeholder="${placeholder}" />` : ""}
+      <div class="chatgpt-toolkit-folder-dialog-footer">
+        <button type="button" class="chatgpt-toolkit-button secondary" data-folder-dialog-action="cancel">${t("settings.close")}</button>
+        <button type="button" class="chatgpt-toolkit-button primary" data-folder-dialog-action="confirm">${confirmText}</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(dialog);
+  ensureFolderDialogTheme(dialog);
+  syncToolkitTheme();
+
+  dialog.focus();
+
+  const input = dialog.querySelector(".chatgpt-toolkit-folder-dialog-input");
+  if (input instanceof HTMLInputElement) {
+    input.focus();
+    input.select();
+  }
+
+  const handleConfirm = () => {
+    if (variant === "input") {
+      const nextValue = input instanceof HTMLInputElement ? input.value.trim() : "";
+      onConfirm(nextValue);
+      return;
+    }
+    onConfirm(true);
+  };
+
+  const onClick = (event) => {
+    const target = getSafeEventTarget(event);
+    const actionTarget = target?.closest("[data-folder-dialog-action]");
+    if (!(actionTarget instanceof HTMLElement)) {
+      return;
+    }
+
+    const action = actionTarget.dataset.folderDialogAction;
+    if (action === "cancel") {
+      closeFolderDialog();
+      return;
+    }
+
+    if (action === "confirm") {
+      handleConfirm();
+      closeFolderDialog();
+    }
+  };
+
+  const onKeyDown = (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeFolderDialog();
+      return;
+    }
+
+    if (event.key === "Enter" && variant === "input") {
+      event.preventDefault();
+      handleConfirm();
+      closeFolderDialog();
+    }
+  };
+
+  dialog.addEventListener("click", onClick);
+  dialog.addEventListener("keydown", onKeyDown);
+};
 const createFolder = () => {
-  const inputName = window.prompt(t("folder.createPrompt"), getNextFolderName());
-  if (inputName === null) {
-    return;
-  }
+  showFolderDialog({
+    title: t("folder.create"),
+    value: getNextFolderName(),
+    placeholder: t("folder.createPrompt"),
+    confirmText: t("folder.create"),
+    variant: "input",
+    onConfirm: (name) => {
+      if (!name) {
+        return;
+      }
 
-  const name = inputName.trim();
-  if (!name) {
-    return;
-  }
-
-  const folders = getSortedFolders();
-  folderState.folders = [
-    ...folders,
-    {
-      id: createFolderId(),
-      name,
-      collapsed: false,
-      order: folders.length,
-      createdAt: Date.now(),
+      const folders = getSortedFolders();
+      folderState.folders = [
+        ...folders,
+        {
+          id: createFolderId(),
+          name,
+          collapsed: false,
+          order: folders.length,
+          createdAt: Date.now(),
+        },
+      ];
+      persistFolderState();
+      scheduleFolderRefresh();
     },
-  ];
-  persistFolderState();
-  scheduleFolderRefresh();
+  });
 };
 
 const renameFolder = (folderId) => {
@@ -1140,19 +1252,22 @@ const renameFolder = (folderId) => {
     return;
   }
 
-  const inputName = window.prompt(t("folder.renamePrompt"), folder.name);
-  if (inputName === null) {
-    return;
-  }
+  showFolderDialog({
+    title: t("folder.menuRename"),
+    value: folder.name,
+    placeholder: t("folder.renamePrompt"),
+    confirmText: t("folder.menuRename"),
+    variant: "input",
+    onConfirm: (nextName) => {
+      if (!nextName || nextName === folder.name) {
+        return;
+      }
 
-  const nextName = inputName.trim();
-  if (!nextName || nextName === folder.name) {
-    return;
-  }
-
-  folder.name = nextName;
-  persistFolderState();
-  scheduleFolderRefresh();
+      folder.name = nextName;
+      persistFolderState();
+      scheduleFolderRefresh();
+    },
+  });
 };
 
 const deleteFolder = (folderId) => {
@@ -1161,28 +1276,31 @@ const deleteFolder = (folderId) => {
     return;
   }
 
-  const confirmed = window.confirm(t("folder.deleteConfirm", { name: folder.name }));
-  if (!confirmed) {
-    return;
-  }
+  showFolderDialog({
+    title: t("folder.menuDelete"),
+    message: t("folder.deleteConfirm", { name: folder.name }),
+    confirmText: t("folder.menuDelete"),
+    variant: "confirm",
+    onConfirm: () => {
+      folderState.folders = getSortedFolders()
+        .filter((item) => item.id !== folderId)
+        .map((item, index) => ({
+          ...item,
+          order: index,
+        }));
 
-  folderState.folders = getSortedFolders()
-    .filter((item) => item.id !== folderId)
-    .map((item, index) => ({
-      ...item,
-      order: index,
-    }));
+      Object.keys(folderState.assignments).forEach((conversationId) => {
+        if (folderState.assignments[conversationId] === folderId) {
+          delete folderState.assignments[conversationId];
+        }
+      });
+      delete folderState.itemOrders[folderId];
 
-  Object.keys(folderState.assignments).forEach((conversationId) => {
-    if (folderState.assignments[conversationId] === folderId) {
-      delete folderState.assignments[conversationId];
-    }
+      closeFolderMenu();
+      persistFolderState();
+      scheduleFolderRefresh();
+    },
   });
-  delete folderState.itemOrders[folderId];
-
-  closeFolderMenu();
-  persistFolderState();
-  scheduleFolderRefresh();
 };
 
 const toggleFolder = (folderId) => {
@@ -1371,6 +1489,9 @@ const cleanupFolderUi = () => {
   if (menu) {
     menu.remove();
   }
+
+  closeFolderDialog();
+
 
   folderState.section = null;
   folderState.headerButton = null;

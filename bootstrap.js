@@ -1,4 +1,4 @@
-﻿/*
+/*
  * ChatGPT Conversation Toolkit - Bootstrap and DOM observers
  */
 if (!window[TOOLKIT_BOOTSTRAP_FLAG]) {
@@ -469,13 +469,11 @@ if (!window[TOOLKIT_BOOTSTRAP_FLAG]) {
 
     window.addEventListener("resize", () => {
       const btn = document.getElementById(MINIMIZED_ID);
-      if (
-        btn &&
-        btn.classList.contains("is-visible") &&
-        !minimizedButtonState.pointerDown &&
-        !minimizedButtonState.dragging
-      ) {
+      if (btn && !minimizedButtonState.pointerDown && !minimizedButtonState.dragging) {
         ensureButtonVisible(btn);
+      }
+      if (typeof ensureToolbarVisible === "function" && !toolbarDragState.pointerDown && !toolbarDragState.dragging) {
+        ensureToolbarVisible();
       }
       if (timelineState.pointerDown || timelineState.dragging) {
         timelineState.refreshPending = true;

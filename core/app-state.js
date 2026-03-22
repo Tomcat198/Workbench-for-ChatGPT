@@ -1,4 +1,4 @@
-﻿/*
+/*
  * ChatGPT Conversation Toolkit - Global state and configuration
  */
 const TOOLKIT_ID = "chatgpt-conversation-toolkit";
@@ -40,15 +40,19 @@ const PROMPT_STORAGE_KEY = "chatgpt-toolkit-prompts-v1";
 const PROMPT_LOCAL_FALLBACK_KEY = "chatgpt-toolkit-prompts-fallback";
 const FOLDER_MANAGER_ID = "chatgpt-toolkit-folder-manager";
 const FOLDER_MENU_ID = "chatgpt-toolkit-folder-menu";
+const FOLDER_DIALOG_ID = "chatgpt-toolkit-folder-dialog";
 const FOLDER_STORAGE_KEY = "chatgpt-toolkit-folders-v1";
 const FOLDER_LOCAL_FALLBACK_KEY = "chatgpt-toolkit-folders-fallback";
 const FOLDER_ROOT_ATTR = "data-toolkit-folder-root";
 
 const state = {
   isCollapsed: false,
+  // isMinimized now represents panel hidden state while minimized button stays visible.
   isMinimized: false,
   keepLatest: DEFAULT_SETTINGS.keepLatest,
   settings: { ...DEFAULT_SETTINGS },
+  toolbarPosition: null,
+  minimizedButtonPositionV2: null,
   // Legacy DOM-cache fields kept for backward compatibility in Phase 1.
   collapsedNodes: [],
   cachedNodes: [],
@@ -82,6 +86,11 @@ const autoOptimizeState = {
 };
 
 const minimizedButtonState = {
+  pointerDown: false,
+  dragging: false,
+};
+
+const toolbarDragState = {
   pointerDown: false,
   dragging: false,
 };
@@ -145,3 +154,4 @@ let bodyThemeObserved = false;
 const themeAttributeFilter = ["class", "data-theme", "style"];
 
 const TOOLKIT_BOOTSTRAP_FLAG = "__chatgptConversationToolkitBootstrapped";
+

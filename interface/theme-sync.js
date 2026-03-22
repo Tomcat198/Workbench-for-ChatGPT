@@ -70,6 +70,7 @@ const applyToolkitTheme = (theme) => {
     document.getElementById(SETTINGS_MODAL_ID),
     document.getElementById(FOLDER_MANAGER_ID),
     document.getElementById(FOLDER_MENU_ID),
+    document.getElementById(FOLDER_DIALOG_ID),
     document.querySelector(`[${FOLDER_ROOT_ATTR}="1"]`),
   ];
 
