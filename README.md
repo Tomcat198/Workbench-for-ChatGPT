@@ -356,7 +356,6 @@ This project is **not** the official continuation of the original repository.
 ## ⚠️ 已知问题 / 注意事项 | Known Limitations
 
 - 时间线只对当前页面**已加载**的内容有效，不会主动请求 ChatGPT 尚未渲染的更早历史消息。
-- 搜索依赖当前页面中存在的内容；若较早内容仍被隐藏或未加载，可能需要先 **展开全部**。
 - 文件夹管理依赖当前侧边栏 DOM 结构，本地保存分类关系，不会同步到 ChatGPT 服务端。
 - ChatGPT 页面结构可能会持续变化，未来若 DOM 调整较大，选择器与挂载点可能需要继续适配。
 - 多模态、图片生成、深度思考等复杂场景虽然已增强兼容，但仍建议在重要数据导出前自行检查结果。
@@ -389,18 +388,25 @@ This project is **not** the official continuation of the original repository.
 
 ---
 
-## 🌟 支持项目 | Support
+## ☕ 赞助支持 | Support
 
-如果这个项目对你有帮助，欢迎点个 Star ⭐  
-这会非常有帮助，也会让我更有动力继续维护它。
+如果这个项目对你有帮助，欢迎支持我继续维护它 ✨  
+你的赞助将用于后续功能迭代、界面优化与兼容性维护。
 
 如果你有建议、Bug 反馈或改进想法，也欢迎提交 Issue 或发起 PR。
 
-<!-- 如需保留收款码，可取消下面注释并替换为你的实际图片路径
-## ☕ 请作者喝杯奶茶
-
-<img src="./image/收款码.jpg" width="250" alt="Support QR code" />
--->
+<table>
+  <tr>
+    <td align="center">
+      <strong>微信赞助</strong><br/>
+      <img src="./微信收款码.jpg" alt="微信收款码" width="260" />
+    </td>
+    <td align="center">
+      <strong>支付宝赞助</strong><br/>
+      <img src="./支付宝收款码.jpg" alt="支付宝收款码" width="260" />
+    </td>
+  </tr>
+</table>
 
 ---
 
