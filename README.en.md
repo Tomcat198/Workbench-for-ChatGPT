@@ -64,6 +64,8 @@ Below is a preview of the current interface, showing the toolbar, conversation n
 
 ![Screenshot Preview](./image/preview.png)
 
+![Screenshot Preview](./image/preview_1.png)
+
 ---
 
 ## 🚀 Installation & Quick Start 🛠️
