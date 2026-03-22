@@ -3612,3 +3612,77 @@ html[data-toolkit-folder-sorting="1"] .chatgpt-toolkit-folder-header[draggable="
     grid-template-columns: 1fr;
   }
 }
+/* Prompt Vault Responsive Size Final Patch */
+.chatgpt-toolkit-prompt-modal[data-toolkit-theme] .chatgpt-toolkit-prompt-panel {
+  width: min(780px, calc(100vw - 40px));
+  max-height: calc(100vh - 40px);
+  padding: 18px 18px 16px;
+  gap: 16px;
+}
+
+.chatgpt-toolkit-prompt-filters-grid {
+  grid-template-columns: minmax(320px, 2.3fr) minmax(150px, 1fr) minmax(170px, 1.1fr);
+  gap: 12px;
+}
+
+.chatgpt-toolkit-prompt-modal[data-toolkit-theme] .chatgpt-toolkit-prompt-editor {
+  grid-template-columns: minmax(260px, 1.3fr) minmax(200px, 1fr);
+  gap: 12px;
+}
+
+.chatgpt-toolkit-prompt-modal[data-toolkit-theme] .chatgpt-toolkit-prompt-editor textarea {
+  min-height: 132px;
+}
+
+.chatgpt-toolkit-prompt-modal[data-toolkit-theme] .chatgpt-toolkit-prompt-list {
+  max-height: clamp(260px, 36vh, 380px);
+}
+
+.chatgpt-toolkit-prompt-modal[data-toolkit-theme] .chatgpt-toolkit-prompt-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.chatgpt-toolkit-prompt-modal[data-toolkit-theme] .chatgpt-toolkit-prompt-footer-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.chatgpt-toolkit-prompt-modal[data-toolkit-theme] .chatgpt-toolkit-prompt-footer-actions button {
+  min-width: 120px;
+}
+
+@media (min-width: 1100px) {
+  .chatgpt-toolkit-prompt-modal[data-toolkit-theme] .chatgpt-toolkit-prompt-panel {
+    min-width: 700px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .chatgpt-toolkit-prompt-filters-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  #chatgpt-toolkit-prompt-search {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 768px) {
+  .chatgpt-toolkit-prompt-modal[data-toolkit-theme] .chatgpt-toolkit-prompt-panel {
+    width: auto;
+    min-width: 0;
+  }
+
+  .chatgpt-toolkit-prompt-filters-grid {
+    grid-template-columns: 1fr;
+  }
+
+  #chatgpt-toolkit-prompt-search {
+    grid-column: auto;
+  }
+}
