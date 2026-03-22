@@ -64,6 +64,8 @@
 
 ![界面预览](./image/preview.png)
 
+![界面预览](./image/preview_1.png)
+
 ---
 
 ## 🚀 安装与使用 | Installation & Quick Start 🛠️
