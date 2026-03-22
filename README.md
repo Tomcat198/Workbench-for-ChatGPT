@@ -1,3 +1,5 @@
+简体中文 | [English](./README.en.md)
+
 # Conversation Workbench for ChatGPT 🧰✨
 
 🧩 一个专注于优化长篇 ChatGPT 对话体验的浏览器扩展，通过整理对话降低卡顿，并提供时间线导航、搜索、导出、提示词管理、文件夹管理与偏好设置能力。  
