@@ -65,9 +65,9 @@ This project is **not** the official continuation of the original repository.
 
 ## 🖼️ 界面预览 | Screenshot 🎨
 
-> 你可以把这里替换成最新界面截图 ✨
+下面是当前版本的界面预览，你可以大致看到工具栏、对话导航、搜索与工作台式交互的整体风格：
 
-![Extension UI](./image/image.png)
+![界面预览](./image/icon_128.png)
 
 ---
 
