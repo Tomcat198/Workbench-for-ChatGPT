@@ -1,8 +1,8 @@
 # Conversation Workbench for ChatGPT 🧰✨
 
-🧩 一个专注于优化长篇 ChatGPT 对话体验的浏览器扩展，通过整理对话降低卡顿，并提供时间线导航、搜索、导出、提示词管理与偏好设置能力。  
+🧩 一个专注于优化长篇 ChatGPT 对话体验的浏览器扩展，通过整理对话降低卡顿，并提供时间线导航、搜索、导出、提示词管理、文件夹管理与偏好设置能力。  
 
-🧩 A browser extension focused on improving long ChatGPT conversations by reducing lag through conversation cleanup, with timeline navigation, search, export, prompt management, and preference settings.
+🧩 A browser extension focused on improving long ChatGPT conversations by reducing lag through conversation cleanup, with timeline navigation, search, export, prompt management, folder management, and preference settings.
 
 ---
 
@@ -11,13 +11,13 @@
 本项目受 [bujue3709/chatgpt-Long-conversation-optimization](https://github.com/bujue3709/chatgpt-Long-conversation-optimization) 启发。  
 在原项目思路基础上，本项目进行了较大幅度的重构与扩展，并逐步演进为一个独立维护的衍生改进版本。
 
-感谢原作者的开源工作与启发 ❤️ (˶ᵔ ᵕ ᵔ˶)  
+感谢原作者的开源工作与启发 ❤️  
 本项目**并不是原仓库的官方后续版本**，也不代表原作者立场；如果你正在寻找原始版本，请优先访问原项目仓库。
 
 This project was inspired by [bujue3709/chatgpt-Long-conversation-optimization](https://github.com/bujue3709/chatgpt-Long-conversation-optimization).  
 Built on top of the original idea, this repository has since been substantially refactored and expanded into an independently maintained derivative improvement.
 
-Many thanks to the original author for the open-source work and inspiration ❤️ (˶ᵔ ᵕ ᵔ˶)  
+Many thanks to the original author for the open-source work and inspiration ❤️  
 This project is **not** the official continuation of the original repository.
 
 ---
@@ -43,8 +43,9 @@ This project is **not** the official continuation of the original repository.
 - 🧠 **底层语义重构**：从更偏 DOM / message 级处理，演进为更清晰的 `message → turn → QA group` 三层模型，使整理、导航、搜索定位和自动整理都围绕更稳定的语义单位工作。
 - 🚀 **长对话体验增强**：针对长对话卡顿、阅读困难和定位低效等问题，重新设计了对话整理、组级时间线导航和搜索定位逻辑。
 - 🧩 **复杂场景兼容增强**：对深度思考拆段、图片创建、多段 assistant 回复等场景做了更完整的适配，减少“看得到但定位不稳”或“结构正确但体验割裂”的问题。
-- 📚 **功能范围扩展**：新增或系统化整合了偏好设置、自动整理、提示词库、组级导航、导出与本地化等能力。
-- 🎨 **界面与产品语言重做**：不再沿用原始工具面板风格，而是以更完整的中文产品化界面、命名与层级重构整体体验。
+- 📚 **功能范围扩展**：新增或系统化整合了偏好设置、自动整理、提示词库、组级导航、导出、文件夹管理与本地化等能力。
+- 🎨 **界面与产品语言重做**：不再沿用原始工具面板风格，而是以更完整的中文产品化界面、命名、层级和视觉系统重构整体体验。
+- 🖱️ **交互体验增强**：悬浮图标与面板支持更灵活的拖动与位置持久化，悬浮入口与工具面板可同时存在，整体更接近可长期使用的工作台体验。
 
 因此，本项目更适合被理解为一个**独立维护的衍生改进版本**，而不是对原项目的简单换皮。
 
@@ -62,7 +63,7 @@ This project is **not** the official continuation of the original repository.
 
 ## 🖼️ 界面预览 | Screenshot 🎨
 
-> 你可以把这里替换成最新界面截图 ✨(๑•̀ㅂ•́)و✧
+> 你可以把这里替换成最新界面截图 ✨
 
 ![Extension UI](./image/image.png)
 
@@ -107,16 +108,18 @@ This project is **not** the official continuation of the original repository.
 
 ### 1. 打开工具栏 🧰
 
-页面加载后，右下角会显示 **ChatGPT 工具** 浮层。  
-点击右上角可收起；收起后会变成一个可拖拽、可贴边的悬浮按钮 ✨
+页面加载后，页面侧边会显示 **ChatGPT 工具** 面板。  
+收起后会变成一个可点击、可拖动、可贴边的悬浮图标；点击图标可再次打开面板，且图标本身仍会保留在页面中，作为稳定入口。
 
-### 2. 整理长对话 🧹
+### 2. 整理对话 🧹
 
-点击 **整理对话** 后，扩展会隐藏较早内容，仅保留最近的一部分对话，以降低长对话页面卡顿感、提升浏览流畅度。
+点击 **整理对话** 后，扩展会隐藏较早内容，仅保留最近的一部分对话，以降低长对话页面卡顿感、提升浏览流畅度。  
+这里的保留与整理逻辑基于更稳定的 **QA group** 语义，而不是简单的零散 message 数量。
 
 ### 3. 展开全部 ♻️
 
-点击 **展开全部** 后，会把之前隐藏的内容恢复到页面中，方便完整阅读或继续回查。恢复时会尽量保持当前阅读位置，避免页面突然跳到顶部。
+点击 **展开全部** 后，会把之前隐藏的内容恢复到页面中，方便完整阅读或继续回查。  
+恢复时会尽量保持当前阅读位置，避免页面突然跳到顶部。
 
 ### 4. 使用对话导航 🕒
 
@@ -128,6 +131,7 @@ This project is **not** the official continuation of the original repository.
 - ✨ 当前节点高亮
 - 🖱️ 滚轮滚动
 - 🧲 拖拽移动
+- 🧩 按 QA group 组织导航节点，而不是简单按单条消息打点
 
 ### 5. 搜索当前对话 🔍
 
@@ -136,7 +140,8 @@ This project is **not** the official continuation of the original repository.
 - 🔎 可在当前对话中搜索匹配内容
 - ✨ 支持高亮
 - ↕️ 支持上一条 / 下一条跳转
-- 🧩 富媒体或特殊场景下会优先保证稳定定位到对应对话组
+- 🧩 富媒体、图片创建、多段回复等特殊场景下，会优先保证稳定定位到对应对话组
+- 📌 搜索结果仍保留 message 命中精度，但定位语义更接近 QA group
 
 ### 6. 导出会话 📦
 
@@ -164,7 +169,20 @@ This project is **not** the official continuation of the original repository.
 - 📏 自动整理阈值
 - 🧾 保留最近 QA 组数
 - 🕒 时间线最大节点数
-- 🌐 语言切换（含跟随浏览器）
+- 🌐 语言切换（含自动跟随浏览器）
+
+### 9. 使用文件夹管理 📁
+
+侧边栏中的文件夹功能支持本地对话归类与整理。  
+在当前版本中，文件夹相关界面也已统一到同一套产品化视觉风格下，支持：
+
+- ➕ 新建文件夹
+- ✏️ 重命名
+- 🗑️ 删除
+- 📂 折叠 / 展开
+- 🧲 拖拽归类
+- ↕️ 排序调整
+- 💾 刷新后恢复本地结构
 
 ---
 
@@ -244,6 +262,7 @@ This project is **not** the official continuation of the original repository.
 - 🎯 达到阈值后自动触发
 - 🔁 单会话避免重复自动触发
 - 🛑 尽量避免在回答流式生成阶段过早打断体验
+- ♻️ 手动展开全部后，不会在同一会话中立即再次自动整理
 
 ### 8. 对话文件夹 📁
 
@@ -267,7 +286,16 @@ This project is **not** the official continuation of the original repository.
 - 🇺🇸 English
 - 🌐 自动（跟随浏览器）
 
-同时，工具栏、时间线、提示词库和相关面板会跟随 ChatGPT 页面明暗主题变化。
+同时，工具栏、时间线、提示词库、偏好设置和相关面板会跟随 ChatGPT 页面明暗主题变化。
+
+### 10. 悬浮图标与可拖动工作台 🪄
+
+当前版本中的工具入口不再只是单一收起按钮，而是更完整的可拖动工作台交互：
+
+- 🖱️ 面板可拖动
+- 📍 悬浮图标可拖动并吸附到页面上下左右边缘
+- 💾 图标与面板位置支持持久化
+- 📌 图标与面板可以同时存在，不会因打开面板而自动消失
 
 ---
 
@@ -277,7 +305,7 @@ This project is **not** the official continuation of the original repository.
 
 是否启用自动整理功能。
 
-### 自动整理 🤖阈值
+### 自动整理阈值 📏
 
 当当前对话达到一定长度后，自动执行整理逻辑。
 
@@ -301,7 +329,7 @@ This project is **not** the official continuation of the original repository.
 
 ## 🏗️ 技术架构概览 | Architecture Overview 🧠
 
-> 以下内容更偏向开发者阅读 👨‍💻(๑•̀ㅂ•́)و✧
+> 以下内容更偏向开发者阅读 👨‍💻
 
 本项目的关键设计之一，是将会话语义分为三层：
 
@@ -357,7 +385,7 @@ This project is **not** the official continuation of the original repository.
 - 🌐 本地化与主题同步
 - 💾 状态管理与持久化
 
-> 具体目录结构与文件命名以当前仓库版本为准 ✍️
+> 具体目录结构与文件命名以当前仓库版本为准。
 
 ---
 
@@ -367,6 +395,7 @@ This project is **not** the official continuation of the original repository.
 - 📁 文件夹管理依赖当前侧边栏 DOM 结构，本地保存分类关系，不会同步到 ChatGPT 服务端。
 - 🧱 ChatGPT 页面结构可能会持续变化，未来若 DOM 调整较大，选择器与挂载点可能需要继续适配。
 - 🧪 多模态、图片生成、深度思考等复杂场景虽然已增强兼容，但仍建议在重要数据导出前自行检查结果。
+- 🧭 拖动位置持久化依赖当前页面视窗与布局，若页面结构或视口尺寸变化较大，位置可能会在极端场景下做安全回退。
 
 ---
 
@@ -384,6 +413,8 @@ This project is **not** the official continuation of the original repository.
 - ⚙️ 偏好设置
 - 🤖 自动整理基础能力
 - 🎨 中文产品化界面重构
+- 🖱️ 面板与图标拖动交互
+- 📍 悬浮图标四边吸附与位置持久化
 
 后续可能继续完善：
 
@@ -398,7 +429,7 @@ This project is **not** the official continuation of the original repository.
 
 ## ☕ 赞助支持 | Support 💖
 
-如果这个项目对你有帮助，欢迎支持我继续维护它 ✨(ฅ´ω`ฅ)  
+如果这个项目对你有帮助，欢迎支持我继续维护它 ✨  
 你的赞助将用于后续功能迭代、界面优化与兼容性维护。
 
 如果你有建议、Bug 反馈或改进想法，也欢迎提交 Issue 或发起 PR 💌
@@ -415,7 +446,6 @@ This project is **not** the official continuation of the original repository.
     </td>
   </tr>
 </table>
-
 
 ---
 
