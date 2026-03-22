@@ -65,9 +65,11 @@ This project is especially useful for:
 
 ## 🖼️ Screenshot 🎨
 
-> Replace this section with your latest screenshots if needed.
+Below is a preview of the current interface, showing the toolbar, conversation navigation, search, and the overall workbench-style interaction:
 
-![Extension UI](./image/image.png)
+![Screenshot Preview](./image/icon_128.png)
+
+![Screenshot Preview](./image/preview.png)
 
 ---
 
