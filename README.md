@@ -4,7 +4,6 @@
 
 🧩 一个专注于优化长篇 ChatGPT 对话体验的浏览器扩展，通过整理对话降低卡顿，并提供时间线导航、搜索、导出、提示词管理、文件夹管理与偏好设置能力。  
 
-🧩 A browser extension focused on improving long ChatGPT conversations by reducing lag through conversation cleanup, with timeline navigation, search, export, prompt management, folder management, and preference settings.
 
 ---
 
@@ -15,12 +14,6 @@
 
 感谢原作者的开源工作与启发 ❤️  
 本项目**并不是原仓库的官方后续版本**，也不代表原作者立场；如果你正在寻找原始版本，请优先访问原项目仓库。
-
-This project was inspired by [bujue3709/chatgpt-Long-conversation-optimization](https://github.com/bujue3709/chatgpt-Long-conversation-optimization).  
-Built on top of the original idea, this repository has since been substantially refactored and expanded into an independently maintained derivative improvement.
-
-Many thanks to the original author for the open-source work and inspiration ❤️  
-This project is **not** the official continuation of the original repository.
 
 ---
 
