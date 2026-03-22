@@ -1,0 +1,60 @@
+{
+  "manifest_version": 3,
+  "name": "Conversation Workbench for ChatGPT",
+  "version": "2.0.0",
+  "description": "A productivity toolkit for organizing, searching, collapsing, navigating, and exporting long ChatGPT conversations.",
+  "icons": {
+    "16": "image/icon_16.png",
+    "32": "image/icon_32.png",
+    "48": "image/icon_48.png",
+    "128": "image/icon_128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chat.openai.com/*",
+        "https://chatgpt.com/*"
+      ],
+      "js": [
+        "core/app-state.js",
+        "core/locales.js",
+        "utils/storage-bridge.js",
+        "utils/dom-helpers.js",
+        "utils/chat-selectors.js",
+        "core/conversation-store.js",
+        "interface/theme-sync.js",
+        "modules/sidebar-folders.js",
+        "modules/conversation-search.js",
+        "modules/conversation-timeline.js",
+        "modules/prompt-vault.js",
+        "modules/conversation-fold.js",
+        "modules/conversation-export.js",
+        "interface/floating-toolbar.js",
+        "bootstrap.js"
+      ],
+      "css": [
+        "toolkit.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "image/icon_48.png",
+        "image/icon_32.png"
+      ],
+      "matches": [
+        "https://chat.openai.com/*",
+        "https://chatgpt.com/*"
+      ]
+    }
+  ],
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://chat.openai.com/*",
+    "https://chatgpt.com/*"
+  ]
+}
