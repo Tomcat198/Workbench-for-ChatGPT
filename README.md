@@ -62,7 +62,7 @@
 
 ![界面预览](./image/icon_128.png)
 
-![界面预览](./image/icon_32.png)
+![界面预览](./image/preview.png)
 
 ---
 
