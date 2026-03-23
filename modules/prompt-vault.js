@@ -147,23 +147,7 @@ const applyPromptFilters = () => {
     result = result.filter((item) => item.category === promptState.category);
   }
 
-  if (promptState.sortBy === "updated-asc") {
-    result.sort((a, b) => a.updatedAt - b.updatedAt);
-  } else if (promptState.sortBy === "title-asc") {
-    result.sort((a, b) => compareText(a.title, b.title));
-  } else if (promptState.sortBy === "title-desc") {
-    result.sort((a, b) => compareText(b.title, a.title));
-  } else if (promptState.sortBy === "category-asc") {
-    result.sort((a, b) => {
-      const byCategory = compareText(a.category, b.category);
-      if (byCategory !== 0) {
-        return byCategory;
-      }
-      return b.updatedAt - a.updatedAt;
-    });
-  } else {
-    result.sort((a, b) => b.updatedAt - a.updatedAt);
-  }
+  result.sort((a, b) => b.updatedAt - a.updatedAt);
 
   promptState.filteredItems = result;
   if (!result.some((item) => item.id === promptState.selectedId)) {
@@ -206,7 +190,6 @@ const getPromptModalElements = () => {
     toast: modal.querySelector(`#${PROMPT_TOAST_ID}`),
     searchInput: modal.querySelector("#chatgpt-toolkit-prompt-search"),
     categorySelect: modal.querySelector("#chatgpt-toolkit-prompt-category-filter"),
-    sortSelect: modal.querySelector("#chatgpt-toolkit-prompt-sort"),
     listContainer: modal.querySelector("#chatgpt-toolkit-prompt-list"),
     emptyTip: modal.querySelector("#chatgpt-toolkit-prompt-empty"),
     countLabel: modal.querySelector("#chatgpt-toolkit-prompt-count"),
@@ -215,6 +198,293 @@ const getPromptModalElements = () => {
     addContent: modal.querySelector("#chatgpt-toolkit-prompt-add-content"),
     fileInput: modal.querySelector(`#${PROMPT_FILE_INPUT_ID}`),
   };
+};
+
+const PROMPT_COMPANION_GAP = 8;
+const PROMPT_COMPANION_MARGIN = 16;
+const PROMPT_COMPANION_MIN_HEIGHT = 260;
+const PROMPT_COMPANION_DRAG_MARGIN = 10;
+const PROMPT_COMPANION_DRAG_THRESHOLD = 5;
+const PROMPT_COMPANION_DEFAULT_WIDTH = 248;
+const PROMPT_POSITION_MODE_ANCHORED = "anchored";
+const PROMPT_POSITION_MODE_MANUAL = "manual";
+
+let promptCompanionOutsideClickBound = false;
+let promptCompanionResizeBound = false;
+const promptDragState = {
+  pointerDown: false,
+  dragging: false,
+};
+
+const clampPromptCompanionValue = (value, min, max) => Math.min(Math.max(value, min), max);
+
+const getPromptCompanionAnchorRect = () => {
+  const toolbar = document.getElementById(TOOLKIT_ID);
+  if (!(toolbar instanceof HTMLElement) || toolbar.classList.contains("is-hidden")) {
+    return null;
+  }
+  return toolbar.getBoundingClientRect();
+};
+
+const applyPromptCompanionManualPosition = (left, top) => {
+  const elements = getPromptModalElements();
+  const modal = elements?.modal;
+  if (!(modal instanceof HTMLElement)) {
+    return;
+  }
+
+  const panel = modal.querySelector(".chatgpt-toolkit-prompt-panel");
+  if (!(panel instanceof HTMLElement)) {
+    return;
+  }
+
+  const rect = panel.getBoundingClientRect();
+  const width = rect.width || panel.offsetWidth || PROMPT_COMPANION_DEFAULT_WIDTH;
+  const maxLeft = Math.max(PROMPT_COMPANION_DRAG_MARGIN, window.innerWidth - width - PROMPT_COMPANION_DRAG_MARGIN);
+  const nextLeft = clampPromptCompanionValue(left, PROMPT_COMPANION_DRAG_MARGIN, maxLeft);
+  const maxTop = Math.max(PROMPT_COMPANION_DRAG_MARGIN, window.innerHeight - PROMPT_COMPANION_MIN_HEIGHT - PROMPT_COMPANION_DRAG_MARGIN);
+  const nextTop = clampPromptCompanionValue(top, PROMPT_COMPANION_DRAG_MARGIN, maxTop);
+  const nextMaxHeight = Math.max(
+    180,
+    window.innerHeight - Math.round(nextTop) - PROMPT_COMPANION_MARGIN,
+  );
+
+  panel.style.left = `${Math.round(nextLeft)}px`;
+  panel.style.top = `${Math.round(nextTop)}px`;
+  panel.style.width = `${Math.round(width)}px`;
+  panel.style.maxHeight = `${Math.round(nextMaxHeight)}px`;
+};
+
+const savePromptCompanionManualPosition = (left, top) => {
+  promptState.positionMode = PROMPT_POSITION_MODE_MANUAL;
+  promptState.manualPosition = { left: Math.round(left), top: Math.round(top) };
+  savePromptPanelPosition({
+    mode: PROMPT_POSITION_MODE_MANUAL,
+    left: Math.round(left),
+    top: Math.round(top),
+  });
+};
+
+const resetPromptCompanionToAnchor = () => {
+  promptState.positionMode = PROMPT_POSITION_MODE_ANCHORED;
+  promptState.manualPosition = null;
+  savePromptPanelPosition(null);
+  repositionPromptCompanion({ force: true });
+};
+
+const repositionPromptCompanion = (options = {}) => {
+  const { force = false } = options;
+  if (!force && promptState.positionMode === PROMPT_POSITION_MODE_MANUAL && promptState.manualPosition) {
+    applyPromptCompanionManualPosition(promptState.manualPosition.left, promptState.manualPosition.top);
+    return;
+  }
+
+  const elements = getPromptModalElements();
+  const modal = elements?.modal;
+  if (!(modal instanceof HTMLElement)) {
+    return;
+  }
+
+  const panel = modal.querySelector(".chatgpt-toolkit-prompt-panel");
+  if (!(panel instanceof HTMLElement)) {
+    return;
+  }
+
+  const anchorRect = getPromptCompanionAnchorRect();
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+
+  if (!anchorRect) {
+    return;
+  }
+
+  const panelWidth = Math.min(
+    anchorRect.width || PROMPT_COMPANION_DEFAULT_WIDTH,
+    Math.max(220, viewportWidth - PROMPT_COMPANION_MARGIN * 2),
+  );
+  const left = clampPromptCompanionValue(
+    anchorRect.left,
+    PROMPT_COMPANION_MARGIN,
+    Math.max(PROMPT_COMPANION_MARGIN, viewportWidth - panelWidth - PROMPT_COMPANION_MARGIN),
+  );
+
+  let top = anchorRect.bottom + PROMPT_COMPANION_GAP;
+  let maxHeight = viewportHeight - top - PROMPT_COMPANION_MARGIN;
+  if (maxHeight < PROMPT_COMPANION_MIN_HEIGHT) {
+    top = Math.max(PROMPT_COMPANION_MARGIN, viewportHeight - PROMPT_COMPANION_MARGIN - PROMPT_COMPANION_MIN_HEIGHT);
+    maxHeight = viewportHeight - top - PROMPT_COMPANION_MARGIN;
+  }
+
+  panel.style.left = `${Math.round(left)}px`;
+  panel.style.top = `${Math.round(top)}px`;
+  panel.style.width = `${Math.round(panelWidth)}px`;
+  panel.style.maxHeight = `${Math.max(180, Math.round(maxHeight))}px`;
+};
+
+if (typeof window !== "undefined") {
+  window.repositionPromptCompanion = repositionPromptCompanion;
+  window.resetPromptCompanionToAnchor = resetPromptCompanionToAnchor;
+}
+
+const handlePromptCompanionOutsidePointerDown = (event) => {
+  if (!promptState.isOpen || promptDragState.pointerDown || promptDragState.dragging) {
+    return;
+  }
+
+  const modal = document.getElementById(PROMPT_MODAL_ID);
+  if (!(modal instanceof HTMLElement)) {
+    return;
+  }
+
+  const panel = modal.querySelector(".chatgpt-toolkit-prompt-panel");
+  if (!(panel instanceof HTMLElement)) {
+    return;
+  }
+
+  const target = event.target;
+  if (!(target instanceof Node)) {
+    return;
+  }
+
+  if (panel.contains(target)) {
+    return;
+  }
+
+  const toolbar = document.getElementById(TOOLKIT_ID);
+  if (toolbar instanceof HTMLElement && toolbar.contains(target)) {
+    return;
+  }
+
+  const triggerButton = document.querySelector(`#${TOOLKIT_ID} [data-action="prompt-library"]`);
+  if (triggerButton instanceof HTMLElement && triggerButton.contains(target)) {
+    return;
+  }
+
+  closePromptModal();
+};
+
+const ensurePromptCompanionGlobalListeners = () => {
+  if (!promptCompanionResizeBound) {
+    window.addEventListener("resize", () => {
+      if (promptState.isOpen) {
+        repositionPromptCompanion();
+      }
+    });
+    promptCompanionResizeBound = true;
+  }
+};
+
+const teardownPromptCompanionOutsideClickListener = () => {
+  if (!promptCompanionOutsideClickBound) {
+    return;
+  }
+  document.removeEventListener("pointerdown", handlePromptCompanionOutsidePointerDown, true);
+  promptCompanionOutsideClickBound = false;
+};
+
+const enablePromptCompanionDrag = () => {
+  const elements = getPromptModalElements();
+  const modal = elements?.modal;
+  if (!(modal instanceof HTMLElement)) {
+    return;
+  }
+  if (modal.dataset.dragEnabled === "1") {
+    return;
+  }
+
+  const panel = modal.querySelector(".chatgpt-toolkit-prompt-panel");
+  const header = modal.querySelector(".chatgpt-toolkit-prompt-header");
+  if (!(panel instanceof HTMLElement) || !(header instanceof HTMLElement)) {
+    return;
+  }
+
+  modal.dataset.dragEnabled = "1";
+  let isDragging = false;
+  let moved = false;
+  let startX = 0;
+  let startY = 0;
+  let startLeft = 0;
+  let startTop = 0;
+
+  const onPointerMove = (event) => {
+    if (!isDragging) {
+      return;
+    }
+    const deltaX = event.clientX - startX;
+    const deltaY = event.clientY - startY;
+    if (!moved) {
+      const distanceSquared = deltaX * deltaX + deltaY * deltaY;
+      if (distanceSquared < PROMPT_COMPANION_DRAG_THRESHOLD * PROMPT_COMPANION_DRAG_THRESHOLD) {
+        return;
+      }
+      moved = true;
+      promptDragState.dragging = true;
+      panel.classList.add("is-dragging");
+      panel.style.willChange = "left, top";
+      document.documentElement.style.userSelect = "none";
+    }
+    applyPromptCompanionManualPosition(startLeft + deltaX, startTop + deltaY);
+  };
+
+  const stopDragging = () => {
+    if (!isDragging) {
+      return;
+    }
+    isDragging = false;
+    promptDragState.pointerDown = false;
+    document.removeEventListener("pointermove", onPointerMove);
+    document.removeEventListener("pointerup", stopDragging);
+    document.removeEventListener("pointercancel", stopDragging);
+    panel.classList.remove("is-dragging");
+    panel.style.willChange = "";
+    document.documentElement.style.userSelect = "";
+
+    if (moved) {
+      const rect = panel.getBoundingClientRect();
+      savePromptCompanionManualPosition(rect.left, rect.top);
+    }
+
+    promptDragState.dragging = false;
+    moved = false;
+  };
+
+  header.style.touchAction = "none";
+  header.addEventListener("pointerdown", (event) => {
+    const target = event.target;
+    if (
+      event.button !== 0 ||
+      (target instanceof Element && target.closest("button, input, select, textarea, a"))
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    const rect = panel.getBoundingClientRect();
+    startX = event.clientX;
+    startY = event.clientY;
+    startLeft = rect.left;
+    startTop = rect.top;
+    moved = false;
+    isDragging = true;
+    promptDragState.pointerDown = true;
+    document.addEventListener("pointermove", onPointerMove);
+    document.addEventListener("pointerup", stopDragging);
+    document.addEventListener("pointercancel", stopDragging);
+  });
+};
+
+const restorePromptCompanionPosition = () => {
+  const stored = loadPromptPanelPosition();
+  if (stored?.mode === PROMPT_POSITION_MODE_MANUAL) {
+    promptState.positionMode = PROMPT_POSITION_MODE_MANUAL;
+    promptState.manualPosition = { left: stored.left, top: stored.top };
+    applyPromptCompanionManualPosition(stored.left, stored.top);
+    return;
+  }
+
+  promptState.positionMode = PROMPT_POSITION_MODE_ANCHORED;
+  promptState.manualPosition = null;
+  repositionPromptCompanion({ force: true });
 };
 
 const hidePromptToast = () => {
@@ -328,6 +598,78 @@ const formatPromptTime = (timestamp) => {
   });
 };
 
+const buildPromptHighlightFragment = (text, keyword) => {
+  const source = typeof text === "string" ? text : String(text ?? "");
+  const query = typeof keyword === "string" ? keyword.trim() : "";
+  const fragment = document.createDocumentFragment();
+
+  if (!query) {
+    fragment.appendChild(document.createTextNode(source));
+    return fragment;
+  }
+
+  const sourceLower = source.toLocaleLowerCase();
+  const queryLower = query.toLocaleLowerCase();
+  const matchLength = query.length;
+  let cursor = 0;
+  let matchIndex = sourceLower.indexOf(queryLower, cursor);
+
+  while (matchIndex >= 0) {
+    if (matchIndex > cursor) {
+      fragment.appendChild(document.createTextNode(source.slice(cursor, matchIndex)));
+    }
+
+    const mark = document.createElement("mark");
+    mark.className = "chatgpt-toolkit-prompt-highlight";
+    mark.textContent = source.slice(matchIndex, matchIndex + matchLength);
+    fragment.appendChild(mark);
+
+    cursor = matchIndex + matchLength;
+    matchIndex = sourceLower.indexOf(queryLower, cursor);
+  }
+
+  if (cursor < source.length) {
+    fragment.appendChild(document.createTextNode(source.slice(cursor)));
+  }
+
+  return fragment;
+};
+
+const setPromptNodeText = (node, text, keyword) => {
+  if (!(node instanceof HTMLElement)) {
+    return;
+  }
+  node.replaceChildren(buildPromptHighlightFragment(text, keyword));
+};
+
+const renderPromptEmptyState = (emptyTip, hasFilteredOutItems) => {
+  if (!(emptyTip instanceof HTMLElement)) {
+    return;
+  }
+
+  const emptyTitle = emptyTip.querySelector(".chatgpt-toolkit-prompt-empty-title");
+  const emptyHint = emptyTip.querySelector(".chatgpt-toolkit-prompt-empty-hint");
+  const emptyActions = emptyTip.querySelector(".chatgpt-toolkit-prompt-empty-actions");
+
+  if (!(emptyTitle instanceof HTMLElement) || !(emptyHint instanceof HTMLElement)) {
+    emptyTip.textContent = hasFilteredOutItems ? t("prompt.emptyNoMatch") : t("prompt.empty");
+    return;
+  }
+
+  if (emptyActions instanceof HTMLElement) {
+    emptyActions.style.display = hasFilteredOutItems ? "flex" : "none";
+  }
+
+  if (hasFilteredOutItems) {
+    emptyTitle.textContent = t("prompt.emptyNoMatch");
+    emptyHint.textContent = t("prompt.emptyNoMatchHint");
+    return;
+  }
+
+  emptyTitle.textContent = t("prompt.empty");
+  emptyHint.textContent = t("prompt.emptyHint");
+};
+
 const renderPromptList = () => {
   const elements = getPromptModalElements();
   if (!elements) {
@@ -337,7 +679,6 @@ const renderPromptList = () => {
   const {
     searchInput,
     categorySelect,
-    sortSelect,
     listContainer,
     emptyTip,
     countLabel,
@@ -346,7 +687,6 @@ const renderPromptList = () => {
   if (
     !(searchInput instanceof HTMLInputElement) ||
     !(categorySelect instanceof HTMLSelectElement) ||
-    !(sortSelect instanceof HTMLSelectElement) ||
     !(listContainer instanceof HTMLElement) ||
     !(emptyTip instanceof HTMLElement) ||
     !(countLabel instanceof HTMLElement)
@@ -355,13 +695,16 @@ const renderPromptList = () => {
   }
 
   searchInput.value = promptState.searchText;
-  sortSelect.value = promptState.sortBy;
   renderPromptCategoryOptions(categorySelect);
+  const keyword = promptState.searchText.trim();
+  const isEmptyLibrary = promptState.items.length === 0;
+  countLabel.classList.toggle("is-empty-library", isEmptyLibrary);
 
   listContainer.innerHTML = "";
 
   if (promptState.filteredItems.length === 0) {
     emptyTip.style.display = "block";
+    renderPromptEmptyState(emptyTip, !isEmptyLibrary);
     countLabel.textContent = t("prompt.count", { visible: 0, total: promptState.items.length });
     return;
   }
@@ -386,7 +729,7 @@ const renderPromptList = () => {
 
     const title = document.createElement("h4");
     title.className = "chatgpt-toolkit-prompt-item-title";
-    title.textContent = item.title;
+    setPromptNodeText(title, item.title, keyword);
 
     const deleteBtn = document.createElement("button");
     deleteBtn.type = "button";
@@ -401,13 +744,14 @@ const renderPromptList = () => {
     const meta = document.createElement("p");
     meta.className = "chatgpt-toolkit-prompt-item-meta";
     const timestamp = formatPromptTime(item.updatedAt);
-    meta.textContent = timestamp
+    const metaText = timestamp
       ? t("prompt.itemMetaWithTime", { category: item.category, time: timestamp })
       : t("prompt.itemMetaNoTime", { category: item.category });
+    setPromptNodeText(meta, metaText, keyword);
 
     const content = document.createElement("p");
     content.className = "chatgpt-toolkit-prompt-item-content";
-    content.textContent = item.content;
+    setPromptNodeText(content, item.content, keyword);
 
     itemNode.appendChild(header);
     itemNode.appendChild(meta);
@@ -447,12 +791,15 @@ const copyTextToClipboard = async (text) => {
   return copied;
 };
 
-const copyPromptById = async (promptId) => {
+const copyPromptById = async (promptId, options = {}) => {
+  const { silent = false } = options;
   const item = promptState.items.find((prompt) => prompt.id === promptId);
   if (!item) {
-    updateStatusByKey("status.promptCopyMissing", "info");
-    showPromptToastByKey("prompt.toastCopyFailed", "error");
-    return;
+    if (!silent) {
+      updateStatusByKey("status.promptCopyMissing", "info");
+      showPromptToastByKey("prompt.toastCopyFailed", "error");
+    }
+    return false;
   }
 
   promptState.selectedId = item.id;
@@ -460,14 +807,300 @@ const copyPromptById = async (promptId) => {
 
   const copied = await copyTextToClipboard(item.content);
   if (copied) {
-    updateStatusByKey("status.promptCopyDone", "success", { title: item.title });
+    if (!silent) {
+      updateStatusByKey("status.promptCopyDone", "success", { title: item.title });
+      showPromptToastByKey("prompt.toastCopyDone", "success");
+    }
+    return true;
+  }
+
+  if (!silent) {
+    updateStatusByKey("status.promptCopyBlocked", "info");
+    showPromptToastByKey("prompt.toastCopyFailed", "error");
+  }
+  return false;
+};
+
+const getComposerElement = () => {
+  const selectors = [
+    'div.ProseMirror#prompt-textarea[contenteditable="true"][role="textbox"]',
+    '#prompt-textarea[contenteditable="true"]',
+    '[data-type="unified-composer"] div[contenteditable="true"][role="textbox"]',
+    'div[contenteditable="true"][role="textbox"]',
+    'textarea[name="prompt-textarea"]:not([style*="display: none"])',
+  ];
+
+  for (const selector of selectors) {
+    const element = document.querySelector(selector);
+    if (element instanceof HTMLElement || element instanceof HTMLTextAreaElement) {
+      return element;
+    }
+  }
+
+  return null;
+};
+
+const normalizeComposerText = (value) =>
+  (value || "")
+    .replace(/\r\n?/g, "\n")
+    .replace(/\u00a0/g, " ");
+
+const getComposerText = (element) => {
+  if (element instanceof HTMLTextAreaElement) {
+    return normalizeComposerText(element.value || "");
+  }
+
+  if (element instanceof HTMLElement) {
+    const text = element.textContent || element.innerText || "";
+    return normalizeComposerText(text);
+  }
+
+  return "";
+};
+
+const isContentEditableComposer = (element) =>
+  element instanceof HTMLElement && element.isContentEditable;
+
+const getLeadingComposerText = (element, limit = 512) => {
+  if (!(element instanceof HTMLElement)) {
+    return "";
+  }
+
+  let output = "";
+  const stack = Array.from(element.childNodes);
+  while (stack.length > 0 && output.length < limit) {
+    const node = stack.shift();
+    if (!node) {
+      continue;
+    }
+    if (node.nodeType === Node.TEXT_NODE) {
+      output += node.textContent || "";
+      continue;
+    }
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      const el = node;
+      if (el.tagName === "BR" || el.tagName === "P" || el.tagName === "DIV") {
+        output += "\n";
+      }
+      if (el.childNodes.length > 0) {
+        stack.unshift(...Array.from(el.childNodes));
+      }
+    }
+  }
+
+  return normalizeComposerText(output.slice(0, limit));
+};
+
+const focusComposerToEnd = (element) => {
+  if (element instanceof HTMLTextAreaElement) {
+    const end = element.value.length;
+    element.focus();
+    element.setSelectionRange(end, end);
+    return;
+  }
+
+  if (!(element instanceof HTMLElement)) {
+    return;
+  }
+
+  element.focus();
+  const selection = window.getSelection();
+  if (!selection) {
+    return;
+  }
+
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  range.collapse(false);
+  selection.removeAllRanges();
+  selection.addRange(range);
+};
+
+const writeTextareaValue = (textarea, value) => {
+  const descriptor = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value");
+  if (descriptor?.set) {
+    descriptor.set.call(textarea, value);
+  } else {
+    textarea.value = value;
+  }
+
+  textarea.dispatchEvent(new Event("input", { bubbles: true }));
+  textarea.dispatchEvent(new Event("change", { bubbles: true }));
+  focusComposerToEnd(textarea);
+  return true;
+};
+
+const dispatchComposerInputEvent = (element, text) => {
+  try {
+    const event = new InputEvent("input", {
+      bubbles: true,
+      inputType: "insertText",
+      data: text,
+    });
+    element.dispatchEvent(event);
+  } catch (error) {
+    element.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+};
+
+const buildPromptPrefixFragment = (promptText) => {
+  const fragment = document.createDocumentFragment();
+  const lines = normalizeComposerText(promptText).split("\n");
+
+  if (lines.length === 0) {
+    const empty = document.createElement("p");
+    empty.appendChild(document.createElement("br"));
+    fragment.appendChild(empty);
+  }
+
+  lines.forEach((line) => {
+    const paragraph = document.createElement("p");
+    if (line.length === 0) {
+      paragraph.appendChild(document.createElement("br"));
+    } else {
+      paragraph.textContent = line;
+    }
+    fragment.appendChild(paragraph);
+  });
+
+  const separator = document.createElement("p");
+  separator.appendChild(document.createElement("br"));
+  fragment.appendChild(separator);
+
+  return fragment;
+};
+
+const isPromptAlreadyPrependedContentEditable = (element, promptText) => {
+  const prompt = normalizeComposerText(promptText).trim();
+  if (!prompt) {
+    return false;
+  }
+  const sample = getLeadingComposerText(element, Math.max(prompt.length * 3, 256));
+  return sample.trimStart().startsWith(prompt);
+};
+
+const prependPromptByExecCommand = (element, promptText) => {
+  try {
+    element.focus();
+    const selection = window.getSelection();
+    if (selection) {
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+    const inserted = document.execCommand("insertText", false, `${promptText}\n\n`);
+    if (!inserted) {
+      return false;
+    }
+    dispatchComposerInputEvent(element, promptText);
+    focusComposerToEnd(element);
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
+const prependPromptToContentEditable = (element, promptText) => {
+  if (!isContentEditableComposer(element)) {
+    return { success: false, reason: "composer-write-failed" };
+  }
+
+  if (isPromptAlreadyPrependedContentEditable(element, promptText)) {
+    focusComposerToEnd(element);
+    return { success: true, reason: "already-inserted" };
+  }
+
+  try {
+    const fragment = buildPromptPrefixFragment(promptText);
+    const firstChild = element.firstChild;
+    if (firstChild) {
+      element.insertBefore(fragment, firstChild);
+    } else {
+      element.appendChild(fragment);
+    }
+
+    dispatchComposerInputEvent(element, promptText);
+    focusComposerToEnd(element);
+    return { success: true, reason: "inserted" };
+  } catch (error) {
+    const fallbackInserted = prependPromptByExecCommand(element, promptText);
+    if (!fallbackInserted) {
+      return { success: false, reason: "composer-write-failed" };
+    }
+    return { success: true, reason: "inserted" };
+  }
+};
+
+const setComposerText = (element, value) => {
+  const text = normalizeComposerText(value);
+  if (element instanceof HTMLTextAreaElement) {
+    return writeTextareaValue(element, text);
+  }
+  return false;
+};
+
+const prependPromptToComposer = (promptText) => {
+  const composer = getComposerElement();
+  if (!(composer instanceof HTMLElement || composer instanceof HTMLTextAreaElement)) {
+    return { success: false, reason: "composer-not-found" };
+  }
+
+  const prompt = toSafeText(promptText);
+  if (!prompt) {
+    return { success: false, reason: "prompt-empty" };
+  }
+
+  if (composer instanceof HTMLTextAreaElement) {
+    const currentText = getComposerText(composer);
+    const trimmedCurrent = currentText.trim();
+    const trimmedPrompt = prompt.trim();
+
+    if (trimmedCurrent.startsWith(trimmedPrompt)) {
+      focusComposerToEnd(composer);
+      return { success: true, reason: "already-inserted" };
+    }
+
+    const nextText = trimmedCurrent ? `${prompt}\n\n${currentText}` : prompt;
+    const written = setComposerText(composer, nextText);
+    if (!written) {
+      return { success: false, reason: "composer-write-failed" };
+    }
+    return { success: true, reason: "inserted" };
+  }
+
+  return prependPromptToContentEditable(composer, prompt);
+};
+
+const insertPromptById = async (promptId) => {
+  const item = promptState.items.find((prompt) => prompt.id === promptId);
+  if (!item) {
+    updateStatusByKey("status.promptCopyMissing", "info");
+    showPromptToastByKey("prompt.toastInsertFailed", "error");
+    return;
+  }
+
+  promptState.selectedId = item.id;
+  renderPromptList();
+
+  const insertResult = prependPromptToComposer(item.content);
+  if (insertResult.success) {
+    updateStatusByKey("status.promptInsertDone", "success", { title: item.title });
+    showPromptToastByKey("prompt.toastInsertDone", "success");
+    return;
+  }
+
+  const copied = await copyPromptById(promptId, { silent: true });
+  if (copied) {
+    updateStatusByKey("status.promptInsertFallbackCopied", "info", { title: item.title });
     showPromptToastByKey("prompt.toastCopyDone", "success");
     return;
   }
-  updateStatusByKey("status.promptCopyBlocked", "info");
-  showPromptToastByKey("prompt.toastCopyFailed", "error");
-};
 
+  updateStatusByKey("status.promptInsertBlocked", "info", { title: item.title });
+  showPromptToastByKey("prompt.toastInsertFailed", "error");
+};
 const addPromptFromModal = async () => {
   const elements = getPromptModalElements();
   if (!elements) {
@@ -609,7 +1242,7 @@ const refreshPromptLocalization = () => {
     return;
   }
 
-  const { modal, searchInput, categorySelect, sortSelect, addTitle, addCategory, addContent } = elements;
+  const { modal, searchInput, categorySelect, addTitle, addCategory, addContent } = elements;
 
   if (modal instanceof HTMLElement) {
     const panel = modal.querySelector(".chatgpt-toolkit-prompt-panel");
@@ -631,11 +1264,19 @@ const refreshPromptLocalization = () => {
     if (empty instanceof HTMLElement) {
       const emptyTitle = empty.querySelector(".chatgpt-toolkit-prompt-empty-title");
       const emptyHint = empty.querySelector(".chatgpt-toolkit-prompt-empty-hint");
+      const clearSearchAction = empty.querySelector('[data-prompt-action="clear-search"]');
+      const resetCategoryAction = empty.querySelector('[data-prompt-action="reset-category"]');
       if (emptyTitle instanceof HTMLElement) {
         emptyTitle.textContent = t("prompt.empty");
       }
       if (emptyHint instanceof HTMLElement) {
-        emptyHint.textContent = t("prompt.empty");
+        emptyHint.textContent = t("prompt.emptyHint");
+      }
+      if (clearSearchAction instanceof HTMLButtonElement) {
+        clearSearchAction.textContent = t("prompt.emptyActionClearSearch");
+      }
+      if (resetCategoryAction instanceof HTMLButtonElement) {
+        resetCategoryAction.textContent = t("prompt.emptyActionResetCategory");
       }
     }
 
@@ -678,18 +1319,6 @@ const refreshPromptLocalization = () => {
     addContent.placeholder = t("prompt.contentPlaceholder");
   }
 
-  if (sortSelect instanceof HTMLSelectElement) {
-    const currentValue = promptState.sortBy;
-    sortSelect.innerHTML = `
-      <option value="updated-desc">${t("prompt.sortUpdatedDesc")}</option>
-      <option value="updated-asc">${t("prompt.sortUpdatedAsc")}</option>
-      <option value="title-asc">${t("prompt.sortTitleAsc")}</option>
-      <option value="title-desc">${t("prompt.sortTitleDesc")}</option>
-      <option value="category-asc">${t("prompt.sortCategoryAsc")}</option>
-    `;
-    sortSelect.value = currentValue;
-  }
-
   if (categorySelect instanceof HTMLSelectElement) {
     renderPromptCategoryOptions(categorySelect);
   }
@@ -710,6 +1339,9 @@ const closePromptModal = () => {
   hidePromptToast();
   modal.classList.remove("is-visible");
   promptState.isOpen = false;
+  promptDragState.pointerDown = false;
+  promptDragState.dragging = false;
+  teardownPromptCompanionOutsideClickListener();
 };
 
 const handlePromptModalClick = async (event) => {
@@ -750,6 +1382,26 @@ const handlePromptModalClick = async (event) => {
       }
       return;
     }
+    if (action === "clear-search") {
+      promptState.searchText = "";
+      const elements = getPromptModalElements();
+      if (elements?.searchInput instanceof HTMLInputElement) {
+        elements.searchInput.value = "";
+      }
+      applyPromptFilters();
+      renderPromptList();
+      return;
+    }
+    if (action === "reset-category") {
+      promptState.category = "all";
+      const elements = getPromptModalElements();
+      if (elements?.categorySelect instanceof HTMLSelectElement) {
+        elements.categorySelect.value = "all";
+      }
+      applyPromptFilters();
+      renderPromptList();
+      return;
+    }
   }
 
   const promptNode =
@@ -765,13 +1417,15 @@ const handlePromptModalClick = async (event) => {
 
   const promptId = promptNode.dataset.promptId;
   if (promptId) {
-    await copyPromptById(promptId);
+    await insertPromptById(promptId);
   }
 };
 
 const ensurePromptModal = () => {
   const existingModal = document.getElementById(PROMPT_MODAL_ID);
   if (existingModal) {
+    existingModal.classList.add("is-companion");
+    enablePromptCompanionDrag();
     return existingModal;
   }
 
@@ -781,7 +1435,7 @@ const ensurePromptModal = () => {
 
   const modal = document.createElement("section");
   modal.id = PROMPT_MODAL_ID;
-  modal.className = "chatgpt-toolkit-prompt-modal";
+  modal.className = "chatgpt-toolkit-prompt-modal is-companion";
   modal.innerHTML = `
     <div class="chatgpt-toolkit-prompt-backdrop" data-prompt-action="close"></div>
     <div class="chatgpt-toolkit-prompt-panel" role="dialog" aria-modal="true" aria-label="${t("prompt.modalAria")}">
@@ -800,19 +1454,16 @@ const ensurePromptModal = () => {
           <select id="chatgpt-toolkit-prompt-category-filter">
             <option value="all">${t("prompt.allCategories")}</option>
           </select>
-          <select id="chatgpt-toolkit-prompt-sort">
-            <option value="updated-desc">${t("prompt.sortUpdatedDesc")}</option>
-            <option value="updated-asc">${t("prompt.sortUpdatedAsc")}</option>
-            <option value="title-asc">${t("prompt.sortTitleAsc")}</option>
-            <option value="title-desc">${t("prompt.sortTitleDesc")}</option>
-            <option value="category-asc">${t("prompt.sortCategoryAsc")}</option>
-          </select>
         </div>
       </div>
       <div id="chatgpt-toolkit-prompt-list" class="chatgpt-toolkit-prompt-list"></div>
       <p id="chatgpt-toolkit-prompt-empty" class="chatgpt-toolkit-prompt-empty">
         <span class="chatgpt-toolkit-prompt-empty-title">${t("prompt.empty")}</span>
-        <span class="chatgpt-toolkit-prompt-empty-hint">${t("prompt.empty")}</span>
+        <span class="chatgpt-toolkit-prompt-empty-hint">${t("prompt.emptyHint")}</span>
+        <span class="chatgpt-toolkit-prompt-empty-actions">
+          <button type="button" data-prompt-action="clear-search">${t("prompt.emptyActionClearSearch")}</button>
+          <button type="button" data-prompt-action="reset-category">${t("prompt.emptyActionResetCategory")}</button>
+        </span>
       </p>
       <div class="chatgpt-toolkit-prompt-editor">
         <input id="chatgpt-toolkit-prompt-add-title" type="text" placeholder="${t("prompt.titlePlaceholder")}" />
@@ -878,18 +1529,16 @@ const ensurePromptModal = () => {
     });
   }
 
-  if (elements?.sortSelect instanceof HTMLSelectElement) {
-    elements.sortSelect.addEventListener("change", () => {
-      promptState.sortBy = elements.sortSelect.value || "updated-desc";
-      applyPromptFilters();
-      renderPromptList();
-    });
-  }
-
   if (elements?.fileInput instanceof HTMLInputElement) {
     elements.fileInput.addEventListener("change", () => {
       void importPromptLibrary(elements.fileInput);
     });
+  }
+
+  enablePromptCompanionDrag();
+  if (promptState.isOpen) {
+    restorePromptCompanionPosition();
+    ensurePromptCompanionGlobalListeners();
   }
 
   return modal;
@@ -908,5 +1557,9 @@ const openPromptModal = async () => {
 
   promptState.isOpen = true;
   modal.classList.add("is-visible");
+  modal.classList.add("is-companion");
   hidePromptToast();
+  restorePromptCompanionPosition();
+  ensurePromptCompanionGlobalListeners();
+  enablePromptCompanionDrag();
 };

@@ -4,6 +4,9 @@
 const FLOATING_EDGE_MARGIN = 16;
 const TOOLBAR_DRAG_MARGIN = 10;
 const TOOLBAR_DRAG_THRESHOLD = 5;
+const TOOLBAR_FALLBACK_WIDTH = 248;
+const TOOLBAR_DEFAULT_TOP = 72;
+const TOOLBAR_DEFAULT_RIGHT = 16;
 
 const clampValue = (value, min, max) => Math.min(Math.max(value, min), max);
 
@@ -157,7 +160,7 @@ const applyToolbarPosition = (toolbar, left, top, savePosition = false) => {
     return;
   }
   const rect = toolbar.getBoundingClientRect();
-  const width = rect.width || toolbar.offsetWidth || 280;
+  const width = rect.width || toolbar.offsetWidth || TOOLBAR_FALLBACK_WIDTH;
   const height = rect.height || toolbar.offsetHeight || 420;
   const next = clampToolbarPosition(left, top, width, height);
   toolbar.style.right = "auto";
@@ -174,14 +177,26 @@ const applyToolbarPosition = (toolbar, left, top, savePosition = false) => {
 
 const applyStoredToolbarPosition = (toolbar) => {
   if (!(toolbar instanceof HTMLElement)) {
-    return;
+    return false;
   }
   const stored = loadToolbarPosition();
   if (!stored) {
-    return;
+    return false;
   }
   state.toolbarPosition = stored;
   applyToolbarPosition(toolbar, stored.left, stored.top, false);
+  return true;
+};
+
+const applyDefaultToolbarAnchorPosition = (toolbar) => {
+  if (!(toolbar instanceof HTMLElement)) {
+    return;
+  }
+
+  const rect = toolbar.getBoundingClientRect();
+  const width = rect.width || toolbar.offsetWidth || TOOLBAR_FALLBACK_WIDTH;
+  const left = window.innerWidth - width - TOOLBAR_DEFAULT_RIGHT;
+  applyToolbarPosition(toolbar, left, TOOLBAR_DEFAULT_TOP, false);
 };
 
 const ensureToolbarVisible = () => {
@@ -190,8 +205,16 @@ const ensureToolbarVisible = () => {
     return;
   }
   const rect = toolbar.getBoundingClientRect();
-  const next = clampToolbarPosition(rect.left, rect.top, rect.width || toolbar.offsetWidth || 280, rect.height || toolbar.offsetHeight || 420);
+  const next = clampToolbarPosition(
+    rect.left,
+    rect.top,
+    rect.width || toolbar.offsetWidth || TOOLBAR_FALLBACK_WIDTH,
+    rect.height || toolbar.offsetHeight || 420,
+  );
   applyToolbarPosition(toolbar, next.left, next.top, Boolean(state.toolbarPosition));
+  if (typeof window.repositionPromptCompanion === "function") {
+    window.repositionPromptCompanion();
+  }
 };
 const setToolbarVisibility = (isVisible, options = {}) => {
   const { clearSearch = false, closeSettings = false } = options;
@@ -298,9 +321,19 @@ const refreshToolbarLocalization = () => {
     restoreButton.textContent = t("toolbar.restore");
   }
 
-  const exportButton = toolbar.querySelector('[data-action="export"]');
+  const exportButton = toolbar.querySelector('[data-action="export-toggle"]');
   if (exportButton instanceof HTMLButtonElement) {
     exportButton.textContent = t("toolbar.export");
+  }
+
+  const exportJsonButton = toolbar.querySelector('[data-action="export-json"]');
+  if (exportJsonButton instanceof HTMLButtonElement) {
+    exportJsonButton.textContent = t("toolbar.exportJson");
+  }
+
+  const exportMarkdownButton = toolbar.querySelector('[data-action="export-markdown"]');
+  if (exportMarkdownButton instanceof HTMLButtonElement) {
+    exportMarkdownButton.textContent = t("toolbar.exportMarkdown");
   }
 
   const promptButton = toolbar.querySelector('[data-action="prompt-library"]');
@@ -379,9 +412,25 @@ const buildToolbar = () => {
       <button type="button" class="chatgpt-toolkit-button secondary" data-action="restore">
         ${t("toolbar.restore")}
       </button>
-      <button type="button" class="chatgpt-toolkit-button secondary" data-action="export">
-        ${t("toolbar.export")}
-      </button>
+      <div class="chatgpt-toolkit-export-group" data-export-group>
+        <button
+          type="button"
+          class="chatgpt-toolkit-button secondary"
+          data-action="export-toggle"
+          aria-expanded="false"
+          aria-controls="chatgpt-toolkit-export-menu"
+        >
+          ${t("toolbar.export")}
+        </button>
+        <div id="chatgpt-toolkit-export-menu" class="chatgpt-toolkit-export-menu" data-export-menu>
+          <button type="button" class="chatgpt-toolkit-button secondary" data-action="export-json">
+            ${t("toolbar.exportJson")}
+          </button>
+          <button type="button" class="chatgpt-toolkit-button secondary" data-action="export-markdown">
+            ${t("toolbar.exportMarkdown")}
+          </button>
+        </div>
+      </div>
       <button type="button" class="chatgpt-toolkit-button entry" data-action="prompt-library">
         ${t("toolbar.promptLibrary")}
       </button>
@@ -407,9 +456,27 @@ const buildToolbar = () => {
     <p id="${STATUS_ID}" class="chatgpt-toolkit-status" data-tone="info">${t("toolbar.ready")}</p>
     <p class="chatgpt-toolkit-tip">${t("toolbar.tip")}</p>
   `;
+  let isExportMenuOpen = false;
+  const setExportMenuOpen = (open) => {
+    const next = Boolean(open);
+    isExportMenuOpen = next;
+    const menu = container.querySelector("[data-export-menu]");
+    const toggle = container.querySelector('[data-action="export-toggle"]');
+    if (menu instanceof HTMLElement) {
+      menu.classList.toggle("is-open", next);
+    }
+    if (toggle instanceof HTMLButtonElement) {
+      toggle.setAttribute("aria-expanded", next ? "true" : "false");
+    }
+  };
 
   container.addEventListener("click", (event) => {
     const target = event.target;
+    const inExportGroup = target instanceof Element && target.closest("[data-export-group]");
+    if (isExportMenuOpen && !inExportGroup) {
+      setExportMenuOpen(false);
+    }
+
     const actionTarget =
       target instanceof Element
         ? target.closest("[data-action]")
@@ -429,7 +496,15 @@ const buildToolbar = () => {
       minimize: () => minimizeToolbar(),
       collapse: () => collapseOldMessages(),
       restore: () => restoreMessages(),
-      export: () => exportMessages(),
+      "export-toggle": () => setExportMenuOpen(!isExportMenuOpen),
+      "export-json": () => {
+        exportMessages();
+        setExportMenuOpen(false);
+      },
+      "export-markdown": () => {
+        exportMessagesAsMarkdown();
+        setExportMenuOpen(false);
+      },
       "prompt-library": () => void openPromptModal(),
       "timeline-toggle": () => toggleTimelineVisibility(),
       settings: () => { if (typeof openSettingsModal === "function") openSettingsModal(); },
@@ -737,6 +812,9 @@ const enableToolbarDrag = (toolbar) => {
     } else {
       resetDragTransform(toolbar, baseTransform);
     }
+    if (typeof window.repositionPromptCompanion === "function") {
+      window.repositionPromptCompanion();
+    }
 
     toolbarDragState.dragging = false;
     toolbar.classList.remove("is-dragging");
@@ -756,7 +834,7 @@ const enableToolbarDrag = (toolbar) => {
 
     event.preventDefault();
     const rect = toolbar.getBoundingClientRect();
-    const width = rect.width || toolbar.offsetWidth || 280;
+    const width = rect.width || toolbar.offsetWidth || TOOLBAR_FALLBACK_WIDTH;
     const height = rect.height || toolbar.offsetHeight || 420;
 
     dragBounds = {
@@ -793,7 +871,10 @@ const attachToolbar = () => {
   observeThemeOnBodyIfNeeded();
   const toolbar = buildToolbar();
   document.body.appendChild(toolbar);
-  applyStoredToolbarPosition(toolbar);
+  const hasStoredPosition = applyStoredToolbarPosition(toolbar);
+  if (!hasStoredPosition) {
+    applyDefaultToolbarAnchorPosition(toolbar);
+  }
   enableToolbarDrag(toolbar);
   updateStatusByKey("toolbar.ready", "info");
   updateTimelineToggleButton();

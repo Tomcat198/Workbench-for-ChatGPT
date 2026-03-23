@@ -38,6 +38,7 @@ const PROMPT_FILE_INPUT_ID = "chatgpt-toolkit-prompt-file";
 const PROMPT_TOAST_ID = "chatgpt-toolkit-prompt-toast";
 const PROMPT_STORAGE_KEY = "chatgpt-toolkit-prompts-v1";
 const PROMPT_LOCAL_FALLBACK_KEY = "chatgpt-toolkit-prompts-fallback";
+const PROMPT_PANEL_POSITION_KEY = "chatgpt-toolkit-prompt-panel-position-v1";
 const FOLDER_MANAGER_ID = "chatgpt-toolkit-folder-manager";
 const FOLDER_MENU_ID = "chatgpt-toolkit-folder-menu";
 const FOLDER_DIALOG_ID = "chatgpt-toolkit-folder-dialog";
@@ -98,6 +99,8 @@ const toolbarDragState = {
 const promptState = {
   loaded: false,
   isOpen: false,
+  positionMode: "anchored",
+  manualPosition: null,
   items: [],
   filteredItems: [],
   selectedId: null,
@@ -154,4 +157,3 @@ let bodyThemeObserved = false;
 const themeAttributeFilter = ["class", "data-theme", "style"];
 
 const TOOLKIT_BOOTSTRAP_FLAG = "__chatgptConversationToolkitBootstrapped";
-

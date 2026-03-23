@@ -42,6 +42,40 @@ const loadToolbarPosition = () => {
   }
 };
 
+const savePromptPanelPosition = (position) => {
+  try {
+    if (!position) {
+      localStorage.removeItem(PROMPT_PANEL_POSITION_KEY);
+      return;
+    }
+    localStorage.setItem(PROMPT_PANEL_POSITION_KEY, JSON.stringify(position));
+  } catch (error) {
+    // Ignore storage write failures.
+  }
+};
+
+const loadPromptPanelPosition = () => {
+  try {
+    const stored = localStorage.getItem(PROMPT_PANEL_POSITION_KEY);
+    if (!stored) {
+      return null;
+    }
+    const parsed = JSON.parse(stored);
+    const left = Number(parsed?.left);
+    const top = Number(parsed?.top);
+    if (!Number.isFinite(left) || !Number.isFinite(top)) {
+      return null;
+    }
+    return {
+      mode: parsed?.mode === "manual" ? "manual" : "anchored",
+      left: Math.round(left),
+      top: Math.round(top),
+    };
+  } catch (error) {
+    return null;
+  }
+};
+
 const saveMinimizedPositionV2 = (position) => {
   try {
     localStorage.setItem(MINIMIZED_POSITION_V2_KEY, JSON.stringify(position));
