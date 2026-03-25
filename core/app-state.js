@@ -15,16 +15,18 @@ const TIMELINE_COUNT_ID = "chatgpt-conversation-toolkit-timeline-count";
 const TIMELINE_PREVIEW_ID = "chatgpt-conversation-toolkit-timeline-preview";
 const TIMELINE_HINT_ID = "chatgpt-conversation-toolkit-timeline-hint";
 const TIMELINE_VISIBLE_NODE_CAPACITY = 10;
-const TIMELINE_MAX_NODES = 20;
+const TIMELINE_MAX_NODES = 18;
 const DEFAULT_SETTINGS = Object.freeze({
   // autoOptimizeEnabled controls whether auto optimization runs by QA group threshold.
   autoOptimizeEnabled: false,
   // autoOptimizeThreshold is interpreted as QA group count threshold.
   autoOptimizeThreshold: 30,
   // keepLatest is interpreted as latest visible QA group count.
-  keepLatest: 20,
+  keepLatest: 10,
   // timelineMaxNodes is interpreted as max timeline QA group nodes.
   timelineMaxNodes: TIMELINE_MAX_NODES,
+  // timelineSampleNodes is interpreted as visible timeline sampling capacity.
+  timelineSampleNodes: TIMELINE_VISIBLE_NODE_CAPACITY,
 });
 const TIMELINE_CONTENT_CLASS = "chatgpt-toolkit-timeline-content";
 const TIMELINE_WHEEL_DISTANCE_SCALE = 0.24;
@@ -39,6 +41,14 @@ const PROMPT_TOAST_ID = "chatgpt-toolkit-prompt-toast";
 const PROMPT_STORAGE_KEY = "chatgpt-toolkit-prompts-v1";
 const PROMPT_LOCAL_FALLBACK_KEY = "chatgpt-toolkit-prompts-fallback";
 const PROMPT_PANEL_POSITION_KEY = "chatgpt-toolkit-prompt-panel-position-v1";
+const PROMPT_BEHAVIOR_STORAGE_KEY = "chatgpt-toolkit-prompt-behavior-v1";
+const DEFAULT_PROMPT_BEHAVIOR_SETTINGS = Object.freeze({
+  clickAction: "insert",
+  autoAttachEnabled: false,
+  autoAttachTrigger: "beforeSendEach",
+  autoAttachPromptIds: [],
+  autoAttachDedupEnabled: true,
+});
 const FOLDER_MANAGER_ID = "chatgpt-toolkit-folder-manager";
 const FOLDER_MENU_ID = "chatgpt-toolkit-folder-menu";
 const FOLDER_DIALOG_ID = "chatgpt-toolkit-folder-dialog";
@@ -101,6 +111,12 @@ const promptState = {
   isOpen: false,
   positionMode: "anchored",
   manualPosition: null,
+  settingsOpen: false,
+  behaviorLoaded: false,
+  behaviorSettings: { ...DEFAULT_PROMPT_BEHAVIOR_SETTINGS },
+  autoAttachAppliedKeys: {},
+  pageSessionFallbackKey: "",
+  autoAttachLastAttemptAt: 0,
   items: [],
   filteredItems: [],
   selectedId: null,

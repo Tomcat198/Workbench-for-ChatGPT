@@ -1,4 +1,4 @@
-/*
+﻿/*
  * ChatGPT Conversation Toolkit - Prompt library
  */
 // ============ Prompt Library ============
@@ -133,6 +133,147 @@ const compareText = (left, right) =>
     sensitivity: "base",
   });
 
+const DEFAULT_PROMPT_SEED_ITEMS = [
+  {
+    title: "专业润色与改写",
+    category: "写作",
+    content: `你是一名专业写作助手。请对我提供的内容进行优化，要求如下：
+1. 保留原意，不要随意增加未经说明的信息；
+2. 提升语言流畅度、逻辑性和表达准确性；
+3. 根据我的目标调整语气，可选：正式 / 自然 / 简洁 / 有说服力；
+4. 如原文存在错别字、病句、重复表达，请一并修正；
+5. 输出两个版本：
+   - 优化版
+   - 更简洁版
+6. 最后用一句话说明你主要做了哪些修改。
+
+待优化内容：
+{{在这里粘贴原文}}`,
+  },
+  {
+    title: "长文本总结提炼",
+    category: "总结",
+    content: `你是一名信息整理助手。请对我提供的文本进行结构化总结，要求如下：
+1. 提炼核心主题；
+2. 用简洁语言概括主要内容；
+3. 列出 3-5 个关键要点；
+4. 如果文本中包含结论、建议或行动项，请单独列出；
+5. 输出格式清晰，适合快速阅读；
+6. 不要遗漏重要信息，也不要加入原文没有的内容。
+
+请按以下格式输出：
+- 主题：
+- 一句话总结：
+- 关键要点：
+- 结论 / 建议 / 行动项：
+
+待总结文本：
+{{在这里粘贴文本}}`,
+  },
+  {
+    title: "问题分析与解决方案",
+    category: "分析",
+    content: `你是一名擅长分析问题和制定方案的助手。针对我提出的问题，请按以下步骤回答：
+1. 先明确问题本质；
+2. 分析可能原因；
+3. 给出可执行的解决方案；
+4. 按“优先级高 / 中 / 低”排序；
+5. 如果有风险点或常见误区，请额外提醒；
+6. 输出尽量具体，不要只讲空泛道理。
+
+请按以下格式输出：
+- 问题本质：
+- 可能原因：
+- 解决方案：
+  - 高优先级：
+  - 中优先级：
+  - 低优先级：
+- 风险与误区：
+
+我的问题：
+{{在这里描述问题}}`,
+  },
+  {
+    title: "请用中文回答",
+    category: "通用",
+    content: `请默认使用中文回答，除非我明确要求使用其他语言。
+如果涉及英文术语，请优先用中文解释，再附上对应英文。
+回答时保持表达清晰、自然、易懂。`,
+  },
+];
+
+const buildDefaultPromptItems = () => {
+  const now = Date.now();
+  return DEFAULT_PROMPT_SEED_ITEMS.map((seed, index) =>
+    normalizePromptItem({
+      ...seed,
+      id: createPromptId(),
+      createdAt: now + index,
+      updatedAt: now + index,
+    })
+  ).filter(Boolean);
+};
+
+const PROMPT_AUTO_ATTACH_TRIGGER_EACH = "beforeSendEach";
+const PROMPT_AUTO_ATTACH_SEND_DEBOUNCE_MS = 240;
+
+const getPromptBehaviorSettings = () => {
+  const source =
+    promptState.behaviorSettings && typeof promptState.behaviorSettings === "object"
+      ? promptState.behaviorSettings
+      : DEFAULT_PROMPT_BEHAVIOR_SETTINGS;
+
+  const clickAction = source.clickAction === "copy" ? "copy" : "insert";
+  const autoAttachEnabled = Boolean(source.autoAttachEnabled);
+  const autoAttachDedupEnabled =
+    typeof source.autoAttachDedupEnabled === "boolean" ? source.autoAttachDedupEnabled : true;
+  const autoAttachTrigger =
+    source.autoAttachTrigger === PROMPT_AUTO_ATTACH_TRIGGER_EACH ||
+    source.autoAttachTrigger === "beforeSendFirstInConversation"
+      ? PROMPT_AUTO_ATTACH_TRIGGER_EACH
+      : PROMPT_AUTO_ATTACH_TRIGGER_EACH;
+  const autoAttachPromptIds = Array.isArray(source.autoAttachPromptIds)
+    ? source.autoAttachPromptIds
+        .map((value) => (typeof value === "string" ? value.trim() : ""))
+        .filter(Boolean)
+    : [];
+
+  return {
+    ...DEFAULT_PROMPT_BEHAVIOR_SETTINGS,
+    clickAction,
+    autoAttachEnabled,
+    autoAttachTrigger,
+    autoAttachPromptIds,
+    autoAttachDedupEnabled,
+  };
+};
+
+const ensurePromptBehaviorSettingsLoaded = () => {
+  if (promptState.behaviorLoaded) {
+    return;
+  }
+
+  if (typeof loadPromptBehaviorSettings === "function") {
+    promptState.behaviorSettings = loadPromptBehaviorSettings();
+  } else {
+    promptState.behaviorSettings = { ...DEFAULT_PROMPT_BEHAVIOR_SETTINGS };
+  }
+
+  promptState.behaviorLoaded = true;
+};
+
+const persistPromptBehaviorSettings = () => {
+  const normalized = getPromptBehaviorSettings();
+  if (Array.isArray(promptState.items) && promptState.items.length > 0) {
+    const validIds = new Set(promptState.items.map((item) => item.id));
+    normalized.autoAttachPromptIds = normalized.autoAttachPromptIds.filter((id) => validIds.has(id));
+  }
+  promptState.behaviorSettings = normalized;
+  if (typeof savePromptBehaviorSettings === "function") {
+    savePromptBehaviorSettings(normalized);
+  }
+};
+
 const applyPromptFilters = () => {
   const keyword = promptState.searchText.trim().toLowerCase();
   let result = [...promptState.items];
@@ -169,7 +310,7 @@ const ensurePromptLibraryLoaded = async () => {
   const payload = await readPromptPayload();
   const items = extractPromptItems(payload);
   if (items.length === 0) {
-    promptState.items = [];
+    promptState.items = buildDefaultPromptItems();
     await writePromptPayload(buildPromptStoragePayload(promptState.items));
   } else {
     promptState.items = items;
@@ -190,6 +331,13 @@ const getPromptModalElements = () => {
     toast: modal.querySelector(`#${PROMPT_TOAST_ID}`),
     searchInput: modal.querySelector("#chatgpt-toolkit-prompt-search"),
     categorySelect: modal.querySelector("#chatgpt-toolkit-prompt-category-filter"),
+    settingsToggle: modal.querySelector('[data-prompt-action="open-settings"]'),
+    behaviorPanel: modal.querySelector("#chatgpt-toolkit-prompt-behavior-panel"),
+    clickInsertRadio: modal.querySelector('input[name="chatgpt-toolkit-prompt-click-action"][value="insert"]'),
+    clickCopyRadio: modal.querySelector('input[name="chatgpt-toolkit-prompt-click-action"][value="copy"]'),
+    autoAttachEnabledInput: modal.querySelector("#chatgpt-toolkit-prompt-auto-attach-enabled"),
+    autoAttachDedupInput: modal.querySelector("#chatgpt-toolkit-prompt-auto-attach-dedup"),
+    autoAttachList: modal.querySelector("#chatgpt-toolkit-prompt-auto-attach-list"),
     listContainer: modal.querySelector("#chatgpt-toolkit-prompt-list"),
     emptyTip: modal.querySelector("#chatgpt-toolkit-prompt-empty"),
     countLabel: modal.querySelector("#chatgpt-toolkit-prompt-count"),
@@ -211,6 +359,12 @@ const PROMPT_POSITION_MODE_MANUAL = "manual";
 
 let promptCompanionOutsideClickBound = false;
 let promptCompanionResizeBound = false;
+let promptSettingsOutsidePointerBound = false;
+let promptAutoAttachListenersBound = false;
+const PROMPT_SETTINGS_POPOVER_VIEWPORT_MARGIN = 10;
+const PROMPT_SETTINGS_POPOVER_GAP = 8;
+const PROMPT_SETTINGS_POPOVER_MIN_WIDTH = 236;
+const PROMPT_SETTINGS_POPOVER_MIN_HEIGHT = 120;
 const promptDragState = {
   pointerDown: false,
   dragging: false,
@@ -368,6 +522,9 @@ const ensurePromptCompanionGlobalListeners = () => {
     window.addEventListener("resize", () => {
       if (promptState.isOpen) {
         repositionPromptCompanion();
+        if (promptState.settingsOpen) {
+          positionPromptSettingsPopover();
+        }
       }
     });
     promptCompanionResizeBound = true;
@@ -380,6 +537,148 @@ const teardownPromptCompanionOutsideClickListener = () => {
   }
   document.removeEventListener("pointerdown", handlePromptCompanionOutsidePointerDown, true);
   promptCompanionOutsideClickBound = false;
+};
+
+const ensurePromptBehaviorPanelHost = (modal) => {
+  if (!(modal instanceof HTMLElement)) {
+    return;
+  }
+  const panel = modal.querySelector("#chatgpt-toolkit-prompt-behavior-panel");
+  if (!(panel instanceof HTMLElement)) {
+    return;
+  }
+  if (panel.parentElement === modal) {
+    return;
+  }
+  modal.appendChild(panel);
+};
+
+const positionPromptSettingsPopover = () => {
+  const elements = getPromptModalElements();
+  const toggle = elements?.settingsToggle;
+  const panel = elements?.behaviorPanel;
+  if (!(toggle instanceof HTMLElement) || !(panel instanceof HTMLElement)) {
+    return;
+  }
+  if (!promptState.settingsOpen) {
+    return;
+  }
+
+  panel.style.width = "";
+  panel.style.maxHeight = "";
+
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const maxViewportWidth = Math.max(
+    160,
+    viewportWidth - PROMPT_SETTINGS_POPOVER_VIEWPORT_MARGIN * 2,
+  );
+  const minReadableWidth = Math.min(PROMPT_SETTINGS_POPOVER_MIN_WIDTH, maxViewportWidth);
+
+  const contentWidth = Math.ceil(panel.scrollWidth + 2);
+  const nextWidth = Math.min(
+    maxViewportWidth,
+    Math.max(minReadableWidth, contentWidth),
+  );
+
+  const anchorRect = toggle.getBoundingClientRect();
+  let left = anchorRect.right - nextWidth;
+  const minLeft = PROMPT_SETTINGS_POPOVER_VIEWPORT_MARGIN;
+  const maxLeft = Math.max(minLeft, viewportWidth - nextWidth - PROMPT_SETTINGS_POPOVER_VIEWPORT_MARGIN);
+  left = clampPromptCompanionValue(left, minLeft, maxLeft);
+
+  const belowTop = anchorRect.bottom + PROMPT_SETTINGS_POPOVER_GAP;
+  const belowSpace = viewportHeight - belowTop - PROMPT_SETTINGS_POPOVER_VIEWPORT_MARGIN;
+  const aboveBottom = anchorRect.top - PROMPT_SETTINGS_POPOVER_GAP;
+  const aboveSpace = aboveBottom - PROMPT_SETTINGS_POPOVER_VIEWPORT_MARGIN;
+  const maxViewportHeight = Math.max(
+    96,
+    viewportHeight - PROMPT_SETTINGS_POPOVER_VIEWPORT_MARGIN * 2,
+  );
+
+  const openAbove = aboveSpace >= PROMPT_SETTINGS_POPOVER_MIN_HEIGHT || aboveSpace > belowSpace;
+  const availableHeight = Math.min(
+    maxViewportHeight,
+    Math.max(PROMPT_SETTINGS_POPOVER_MIN_HEIGHT, openAbove ? aboveSpace : belowSpace),
+  );
+
+  const panelNaturalHeight = Math.max(panel.scrollHeight, PROMPT_SETTINGS_POPOVER_MIN_HEIGHT);
+  const panelHeight = Math.min(panelNaturalHeight, availableHeight);
+  const topCandidate = openAbove
+    ? Math.max(PROMPT_SETTINGS_POPOVER_VIEWPORT_MARGIN, anchorRect.top - PROMPT_SETTINGS_POPOVER_GAP - panelHeight)
+    : Math.min(
+        viewportHeight - PROMPT_SETTINGS_POPOVER_VIEWPORT_MARGIN - panelHeight,
+        anchorRect.bottom + PROMPT_SETTINGS_POPOVER_GAP,
+      );
+  const minTop = PROMPT_SETTINGS_POPOVER_VIEWPORT_MARGIN;
+  const maxTop = Math.max(minTop, viewportHeight - panelHeight - PROMPT_SETTINGS_POPOVER_VIEWPORT_MARGIN);
+  const top = clampPromptCompanionValue(topCandidate, minTop, maxTop);
+
+  panel.style.left = `${Math.round(left)}px`;
+  panel.style.top = `${Math.round(top)}px`;
+  panel.style.width = `${Math.round(nextWidth)}px`;
+  panel.style.maxHeight = `${Math.round(availableHeight)}px`;
+};
+
+const setPromptSettingsOpen = (open) => {
+  const next = Boolean(open);
+  promptState.settingsOpen = next;
+
+  const elements = getPromptModalElements();
+  const toggle = elements?.settingsToggle;
+  const panel = elements?.behaviorPanel;
+
+  if (toggle instanceof HTMLButtonElement) {
+    toggle.setAttribute("aria-expanded", next ? "true" : "false");
+  }
+  if (panel instanceof HTMLElement) {
+    panel.classList.toggle("is-open", next);
+    if (next) {
+      requestAnimationFrame(() => {
+        positionPromptSettingsPopover();
+      });
+    } else {
+      panel.style.left = "";
+      panel.style.top = "";
+      panel.style.width = "";
+      panel.style.maxHeight = "";
+    }
+  }
+};
+
+const handlePromptSettingsOutsidePointerDown = (event) => {
+  if (!promptState.isOpen || !promptState.settingsOpen) {
+    return;
+  }
+
+  const modal = document.getElementById(PROMPT_MODAL_ID);
+  if (!(modal instanceof HTMLElement)) {
+    return;
+  }
+
+  const target = event.target;
+  if (!(target instanceof Node)) {
+    return;
+  }
+
+  const behaviorPanel = modal.querySelector("#chatgpt-toolkit-prompt-behavior-panel");
+  const settingsToggle = modal.querySelector('[data-prompt-action="open-settings"]');
+  if (behaviorPanel instanceof HTMLElement && behaviorPanel.contains(target)) {
+    return;
+  }
+  if (settingsToggle instanceof HTMLElement && settingsToggle.contains(target)) {
+    return;
+  }
+
+  setPromptSettingsOpen(false);
+};
+
+const ensurePromptSettingsOutsidePointerListener = () => {
+  if (promptSettingsOutsidePointerBound) {
+    return;
+  }
+  document.addEventListener("pointerdown", handlePromptSettingsOutsidePointerDown, true);
+  promptSettingsOutsidePointerBound = true;
 };
 
 const enablePromptCompanionDrag = () => {
@@ -442,6 +741,9 @@ const enablePromptCompanionDrag = () => {
     if (moved) {
       const rect = panel.getBoundingClientRect();
       savePromptCompanionManualPosition(rect.left, rect.top);
+      if (promptState.settingsOpen) {
+        positionPromptSettingsPopover();
+      }
     }
 
     promptDragState.dragging = false;
@@ -652,7 +954,7 @@ const renderPromptEmptyState = (emptyTip, hasFilteredOutItems) => {
   const emptyActions = emptyTip.querySelector(".chatgpt-toolkit-prompt-empty-actions");
 
   if (!(emptyTitle instanceof HTMLElement) || !(emptyHint instanceof HTMLElement)) {
-    emptyTip.textContent = hasFilteredOutItems ? t("prompt.emptyNoMatch") : t("prompt.empty");
+    emptyTip.textContent = hasFilteredOutItems ? t("prompt.emptyNoMatch") : t("prompt.title");
     return;
   }
 
@@ -666,7 +968,7 @@ const renderPromptEmptyState = (emptyTip, hasFilteredOutItems) => {
     return;
   }
 
-  emptyTitle.textContent = t("prompt.empty");
+  emptyTitle.textContent = t("prompt.title");
   emptyHint.textContent = t("prompt.emptyHint");
 };
 
@@ -697,6 +999,9 @@ const renderPromptList = () => {
   searchInput.value = promptState.searchText;
   renderPromptCategoryOptions(categorySelect);
   const keyword = promptState.searchText.trim();
+  const settings = getPromptBehaviorSettings();
+  const actionLabel =
+    settings.clickAction === "copy" ? t("prompt.itemActionCopy") : t("prompt.itemActionInsert");
   const isEmptyLibrary = promptState.items.length === 0;
   countLabel.classList.toggle("is-empty-library", isEmptyLibrary);
 
@@ -706,6 +1011,7 @@ const renderPromptList = () => {
     emptyTip.style.display = "block";
     renderPromptEmptyState(emptyTip, !isEmptyLibrary);
     countLabel.textContent = t("prompt.count", { visible: 0, total: promptState.items.length });
+    renderPromptBehaviorSettings();
     return;
   }
 
@@ -745,8 +1051,8 @@ const renderPromptList = () => {
     meta.className = "chatgpt-toolkit-prompt-item-meta";
     const timestamp = formatPromptTime(item.updatedAt);
     const metaText = timestamp
-      ? t("prompt.itemMetaWithTime", { category: item.category, time: timestamp })
-      : t("prompt.itemMetaNoTime", { category: item.category });
+      ? t("prompt.itemMetaWithTime", { category: item.category, time: timestamp, action: actionLabel })
+      : t("prompt.itemMetaNoTime", { category: item.category, action: actionLabel });
     setPromptNodeText(meta, metaText, keyword);
 
     const content = document.createElement("p");
@@ -760,6 +1066,7 @@ const renderPromptList = () => {
     fragment.appendChild(itemNode);
   });
   listContainer.appendChild(fragment);
+  renderPromptBehaviorSettings();
 };
 
 const copyTextToClipboard = async (text) => {
@@ -1101,6 +1408,366 @@ const insertPromptById = async (promptId) => {
   updateStatusByKey("status.promptInsertBlocked", "info", { title: item.title });
   showPromptToastByKey("prompt.toastInsertFailed", "error");
 };
+
+const runPromptPrimaryAction = async (promptId) => {
+  ensurePromptBehaviorSettingsLoaded();
+  const settings = getPromptBehaviorSettings();
+  if (settings.clickAction === "copy") {
+    await copyPromptById(promptId);
+    return;
+  }
+  await insertPromptById(promptId);
+};
+
+const getAutoAttachItemsInOrder = () => {
+  ensurePromptBehaviorSettingsLoaded();
+  const settings = getPromptBehaviorSettings();
+  const byId = new Map(promptState.items.map((item) => [item.id, item]));
+
+  return settings.autoAttachPromptIds
+    .map((id) => byId.get(id))
+    .filter(Boolean);
+};
+
+const buildAutoAttachPrefixBlock = (items) => {
+  const segments = Array.isArray(items)
+    ? items
+        .map((item) => toSafeText(item?.content))
+        .filter(Boolean)
+    : [];
+  if (segments.length === 0) {
+    return "";
+  }
+  return `${segments.join("\n\n")}\n\n`;
+};
+
+const normalizeAutoAttachComparableText = (value) =>
+  normalizeComposerText(value || "")
+    .replace(/[ \t]+/g, " ")
+    .trimStart();
+
+const hasAutoAttachPrefixByNormalizedCompare = (bodyText, prefixBlock) => {
+  const normalizedPrefix = normalizeAutoAttachComparableText(prefixBlock).trimEnd();
+  if (!normalizedPrefix) {
+    return false;
+  }
+  const normalizedBody = normalizeAutoAttachComparableText(bodyText);
+  return normalizedBody.startsWith(normalizedPrefix);
+};
+
+const composeTextWithPrefix = (originalBody, prefixBlock) => {
+  if (!prefixBlock) {
+    return originalBody || "";
+  }
+  if (!originalBody) {
+    return prefixBlock.trimEnd();
+  }
+  return `${prefixBlock}${originalBody}`;
+};
+
+const getCurrentPromptConversationKey = () => {
+  const keyFromState = typeof state === "object" && state ? toSafeText(state.conversationKey) : "";
+  const keyFromGetter = typeof getConversationKey === "function" ? toSafeText(getConversationKey()) : "";
+  const conversationKey = keyFromGetter || keyFromState;
+  if (conversationKey) {
+    return `conversation:${conversationKey}`;
+  }
+
+  if (!promptState.pageSessionFallbackKey) {
+    promptState.pageSessionFallbackKey = `page:${location.pathname}:${Date.now()}`;
+  }
+  return promptState.pageSessionFallbackKey;
+};
+
+const writeContentEditableText = (element, value) => {
+  if (!(element instanceof HTMLElement) || !element.isContentEditable) {
+    return false;
+  }
+
+  try {
+    element.focus();
+    const selection = window.getSelection();
+    if (selection) {
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+
+    const inserted = document.execCommand("insertText", false, value);
+    if (!inserted) {
+      return false;
+    }
+
+    dispatchComposerInputEvent(element, value);
+    focusComposerToEnd(element);
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
+const tryApplyAutoAttachToComposer = () => {
+  ensurePromptBehaviorSettingsLoaded();
+  const settings = getPromptBehaviorSettings();
+  if (!settings.autoAttachEnabled || settings.autoAttachTrigger !== PROMPT_AUTO_ATTACH_TRIGGER_EACH) {
+    return;
+  }
+
+  const autoAttachItems = getAutoAttachItemsInOrder();
+  const prefixBlock = buildAutoAttachPrefixBlock(autoAttachItems);
+  if (!prefixBlock) {
+    return;
+  }
+
+  const composer = getComposerElement();
+  if (!(composer instanceof HTMLElement || composer instanceof HTMLTextAreaElement)) {
+    return;
+  }
+
+  const originalBody =
+    composer instanceof HTMLTextAreaElement ? composer.value || "" : getComposerText(composer);
+
+  if (settings.autoAttachDedupEnabled && hasAutoAttachPrefixByNormalizedCompare(originalBody, prefixBlock)) {
+    return;
+  }
+
+  const nextValue = composeTextWithPrefix(originalBody, prefixBlock);
+  if (nextValue === originalBody) {
+    return;
+  }
+
+  const written =
+    composer instanceof HTMLTextAreaElement
+      ? setComposerText(composer, nextValue)
+      : writeContentEditableText(composer, nextValue);
+
+  if (!written) {
+    return;
+  }
+};
+
+const shouldHandleSendByKeyboard = (event) => {
+  if (!(event instanceof KeyboardEvent)) {
+    return false;
+  }
+  if (event.key !== "Enter" || event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) {
+    return false;
+  }
+  if (event.isComposing) {
+    return false;
+  }
+  const target = event.target;
+  if (target instanceof HTMLTextAreaElement) {
+    return true;
+  }
+  return target instanceof HTMLElement && target.isContentEditable;
+};
+
+const looksLikeSendButton = (target) => {
+  if (!(target instanceof Element)) {
+    return false;
+  }
+  return Boolean(
+    target.closest(
+      [
+        'button[data-testid="send-button"]',
+        'button[data-testid="composer-send-button"]',
+        'button[aria-label*="Send"]',
+        'button[aria-label*="鍙戦€?]',
+        'button[type="submit"][aria-label]',
+      ].join(", ")
+    )
+  );
+};
+
+const ensurePromptAutoAttachListeners = () => {
+  if (promptAutoAttachListenersBound) {
+    return;
+  }
+
+  const tryRunAutoAttach = () => {
+    const now = Date.now();
+    if (now - promptState.autoAttachLastAttemptAt < PROMPT_AUTO_ATTACH_SEND_DEBOUNCE_MS) {
+      return;
+    }
+    promptState.autoAttachLastAttemptAt = now;
+    tryApplyAutoAttachToComposer();
+  };
+
+  document.addEventListener(
+    "pointerdown",
+    (event) => {
+      if (looksLikeSendButton(event.target)) {
+        tryRunAutoAttach();
+      }
+    },
+    true,
+  );
+
+  document.addEventListener(
+    "keydown",
+    (event) => {
+      if (shouldHandleSendByKeyboard(event)) {
+        tryRunAutoAttach();
+      }
+    },
+    true,
+  );
+
+  promptAutoAttachListenersBound = true;
+};
+
+const updateAutoAttachSelection = (promptId, checked) => {
+  ensurePromptBehaviorSettingsLoaded();
+  const settings = getPromptBehaviorSettings();
+  const ids = [...settings.autoAttachPromptIds];
+  const hasId = ids.includes(promptId);
+  if (checked && !hasId) {
+    ids.push(promptId);
+  } else if (!checked && hasId) {
+    settings.autoAttachPromptIds = ids.filter((id) => id !== promptId);
+    promptState.behaviorSettings = settings;
+    persistPromptBehaviorSettings();
+    return;
+  }
+  settings.autoAttachPromptIds = ids;
+  promptState.behaviorSettings = settings;
+  persistPromptBehaviorSettings();
+};
+
+const moveAutoAttachPrompt = (promptId, direction) => {
+  ensurePromptBehaviorSettingsLoaded();
+  const settings = getPromptBehaviorSettings();
+  const ids = [...settings.autoAttachPromptIds];
+  const index = ids.indexOf(promptId);
+  if (index < 0) {
+    return;
+  }
+  const nextIndex = direction === "up" ? index - 1 : index + 1;
+  if (nextIndex < 0 || nextIndex >= ids.length) {
+    return;
+  }
+  const [moved] = ids.splice(index, 1);
+  ids.splice(nextIndex, 0, moved);
+  settings.autoAttachPromptIds = ids;
+  promptState.behaviorSettings = settings;
+  persistPromptBehaviorSettings();
+};
+
+const renderAutoAttachPromptList = () => {
+  const elements = getPromptModalElements();
+  const list = elements?.autoAttachList;
+  if (!(list instanceof HTMLElement)) {
+    return;
+  }
+
+  ensurePromptBehaviorSettingsLoaded();
+  const settings = getPromptBehaviorSettings();
+  list.innerHTML = "";
+  list.classList.toggle("is-disabled", !settings.autoAttachEnabled);
+
+  if (promptState.items.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "chatgpt-toolkit-prompt-behavior-empty";
+    empty.textContent = t("prompt.behaviorNoItems");
+    list.appendChild(empty);
+    return;
+  }
+
+  const selectedSet = new Set(settings.autoAttachPromptIds);
+  const selectedOrder = new Map(settings.autoAttachPromptIds.map((id, index) => [id, index]));
+  const sortedItems = [...promptState.items].sort((left, right) => {
+    const leftOrder = selectedOrder.has(left.id) ? selectedOrder.get(left.id) : Number.MAX_SAFE_INTEGER;
+    const rightOrder = selectedOrder.has(right.id) ? selectedOrder.get(right.id) : Number.MAX_SAFE_INTEGER;
+    if (leftOrder !== rightOrder) {
+      return leftOrder - rightOrder;
+    }
+    return right.updatedAt - left.updatedAt;
+  });
+
+  const fragment = document.createDocumentFragment();
+  sortedItems.forEach((item) => {
+    const row = document.createElement("div");
+    row.className = "chatgpt-toolkit-prompt-behavior-item";
+
+    const label = document.createElement("label");
+    label.className = "chatgpt-toolkit-prompt-behavior-item-label";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.dataset.promptBehaviorAction = "toggle-auto-attach-item";
+    checkbox.dataset.behaviorPromptId = item.id;
+    checkbox.checked = selectedSet.has(item.id);
+    checkbox.disabled = !settings.autoAttachEnabled;
+
+    const title = document.createElement("span");
+    title.textContent = item.title;
+
+    label.appendChild(checkbox);
+    label.appendChild(title);
+
+    const orderButtons = document.createElement("div");
+    orderButtons.className = "chatgpt-toolkit-prompt-behavior-order";
+
+    const upBtn = document.createElement("button");
+    upBtn.type = "button";
+    upBtn.textContent = "\u2191";
+    upBtn.dataset.promptAction = "auto-attach-up";
+    upBtn.dataset.behaviorPromptId = item.id;
+
+    const downBtn = document.createElement("button");
+    downBtn.type = "button";
+    downBtn.textContent = "\u2193";
+    downBtn.dataset.promptAction = "auto-attach-down";
+    downBtn.dataset.behaviorPromptId = item.id;
+
+    const selectedIndex = settings.autoAttachPromptIds.indexOf(item.id);
+    const isSelected = selectedIndex >= 0;
+    upBtn.disabled = !settings.autoAttachEnabled || !isSelected || selectedIndex === 0;
+    downBtn.disabled =
+      !settings.autoAttachEnabled ||
+      !isSelected ||
+      selectedIndex === settings.autoAttachPromptIds.length - 1;
+
+    orderButtons.appendChild(upBtn);
+    orderButtons.appendChild(downBtn);
+
+    row.appendChild(label);
+    row.appendChild(orderButtons);
+    fragment.appendChild(row);
+  });
+
+  list.appendChild(fragment);
+};
+
+const renderPromptBehaviorSettings = () => {
+  const elements = getPromptModalElements();
+  if (!elements) {
+    return;
+  }
+
+  ensurePromptBehaviorSettingsLoaded();
+  const settings = getPromptBehaviorSettings();
+
+  if (elements.clickInsertRadio instanceof HTMLInputElement) {
+    elements.clickInsertRadio.checked = settings.clickAction !== "copy";
+  }
+  if (elements.clickCopyRadio instanceof HTMLInputElement) {
+    elements.clickCopyRadio.checked = settings.clickAction === "copy";
+  }
+  if (elements.autoAttachEnabledInput instanceof HTMLInputElement) {
+    elements.autoAttachEnabledInput.checked = settings.autoAttachEnabled;
+  }
+  if (elements.autoAttachDedupInput instanceof HTMLInputElement) {
+    elements.autoAttachDedupInput.checked = settings.autoAttachDedupEnabled;
+    elements.autoAttachDedupInput.disabled = !settings.autoAttachEnabled;
+  }
+
+  setPromptSettingsOpen(promptState.settingsOpen);
+  renderAutoAttachPromptList();
+};
+
 const addPromptFromModal = async () => {
   const elements = getPromptModalElements();
   if (!elements) {
@@ -1267,7 +1934,7 @@ const refreshPromptLocalization = () => {
       const clearSearchAction = empty.querySelector('[data-prompt-action="clear-search"]');
       const resetCategoryAction = empty.querySelector('[data-prompt-action="reset-category"]');
       if (emptyTitle instanceof HTMLElement) {
-        emptyTitle.textContent = t("prompt.empty");
+        emptyTitle.textContent = t("prompt.title");
       }
       if (emptyHint instanceof HTMLElement) {
         emptyHint.textContent = t("prompt.emptyHint");
@@ -1280,14 +1947,44 @@ const refreshPromptLocalization = () => {
       }
     }
 
-    const subtitle = modal.querySelector('[data-prompt-label="subtitle"]');
-    if (subtitle instanceof HTMLElement) {
-      subtitle.textContent = t("prompt.empty");
-    }
-
     const filtersTitle = modal.querySelector('[data-prompt-label="filters"]');
     if (filtersTitle instanceof HTMLElement) {
       filtersTitle.textContent = t("toolbar.searchSection");
+    }
+
+    const settingsToggle = modal.querySelector('[data-prompt-action="open-settings"]');
+    if (settingsToggle instanceof HTMLButtonElement) {
+      settingsToggle.title = t("prompt.behaviorOpen");
+      settingsToggle.setAttribute("aria-label", t("prompt.behaviorOpen"));
+    }
+
+    const behaviorClickTitle = modal.querySelector('[data-prompt-label="behavior-click-title"]');
+    if (behaviorClickTitle instanceof HTMLElement) {
+      behaviorClickTitle.textContent = t("prompt.behaviorClickTitle");
+    }
+    const behaviorClickInsert = modal.querySelector('[data-prompt-label="behavior-click-insert"]');
+    if (behaviorClickInsert instanceof HTMLElement) {
+      behaviorClickInsert.textContent = t("prompt.behaviorClickInsert");
+    }
+    const behaviorClickCopy = modal.querySelector('[data-prompt-label="behavior-click-copy"]');
+    if (behaviorClickCopy instanceof HTMLElement) {
+      behaviorClickCopy.textContent = t("prompt.behaviorClickCopy");
+    }
+    const behaviorAutoTitle = modal.querySelector('[data-prompt-label="behavior-auto-title"]');
+    if (behaviorAutoTitle instanceof HTMLElement) {
+      behaviorAutoTitle.textContent = t("prompt.behaviorAutoAttachTitle");
+    }
+    const behaviorAutoEnabled = modal.querySelector('[data-prompt-label="behavior-auto-enabled"]');
+    if (behaviorAutoEnabled instanceof HTMLElement) {
+      behaviorAutoEnabled.textContent = t("prompt.behaviorAutoAttachEnabled");
+    }
+    const behaviorAutoDedup = modal.querySelector('[data-prompt-label="behavior-auto-dedup"]');
+    if (behaviorAutoDedup instanceof HTMLElement) {
+      behaviorAutoDedup.textContent = t("prompt.behaviorAutoAttachDedup");
+    }
+    const behaviorAutoListTitle = modal.querySelector('[data-prompt-label="behavior-auto-list-title"]');
+    if (behaviorAutoListTitle instanceof HTMLElement) {
+      behaviorAutoListTitle.textContent = t("prompt.behaviorAutoAttachListTitle");
     }
 
     const add = modal.querySelector('[data-prompt-action="add"]');
@@ -1325,6 +2022,7 @@ const refreshPromptLocalization = () => {
 
   refreshPromptToastLocalization();
   renderPromptList();
+  renderPromptBehaviorSettings();
 };
 
 const closePromptModal = () => {
@@ -1339,6 +2037,7 @@ const closePromptModal = () => {
   hidePromptToast();
   modal.classList.remove("is-visible");
   promptState.isOpen = false;
+  setPromptSettingsOpen(false);
   promptDragState.pointerDown = false;
   promptDragState.dragging = false;
   teardownPromptCompanionOutsideClickListener();
@@ -1356,11 +2055,21 @@ const handlePromptModalClick = async (event) => {
   if (actionTarget instanceof HTMLElement) {
     const action = actionTarget.dataset.promptAction;
     if (action === "close") {
+      if (
+        actionTarget.classList.contains("chatgpt-toolkit-prompt-backdrop") &&
+        actionTarget.closest(`#${PROMPT_MODAL_ID}`)?.classList.contains("is-companion")
+      ) {
+        return;
+      }
       closePromptModal();
       return;
     }
     if (action === "add") {
       await addPromptFromModal();
+      return;
+    }
+    if (action === "open-settings") {
+      setPromptSettingsOpen(!promptState.settingsOpen);
       return;
     }
     if (action === "export") {
@@ -1402,13 +2111,32 @@ const handlePromptModalClick = async (event) => {
       renderPromptList();
       return;
     }
+    if (action === "auto-attach-up" || action === "auto-attach-down") {
+      const promptId = actionTarget.dataset.behaviorPromptId;
+      if (!promptId) {
+        return;
+      }
+      moveAutoAttachPrompt(promptId, action === "auto-attach-up" ? "up" : "down");
+      renderPromptBehaviorSettings();
+      return;
+    }
+  }
+
+  const insideBehaviorPanel =
+    target instanceof Element
+      ? Boolean(target.closest("#chatgpt-toolkit-prompt-behavior-panel"))
+      : target instanceof Node && target.parentElement
+        ? Boolean(target.parentElement.closest("#chatgpt-toolkit-prompt-behavior-panel"))
+        : false;
+  if (insideBehaviorPanel) {
+    return;
   }
 
   const promptNode =
     target instanceof Element
-      ? target.closest("[data-prompt-id]")
+      ? target.closest(".chatgpt-toolkit-prompt-list [data-prompt-id]")
       : target instanceof Node && target.parentElement
-        ? target.parentElement.closest("[data-prompt-id]")
+        ? target.parentElement.closest(".chatgpt-toolkit-prompt-list [data-prompt-id]")
         : null;
 
   if (!(promptNode instanceof HTMLElement)) {
@@ -1417,7 +2145,7 @@ const handlePromptModalClick = async (event) => {
 
   const promptId = promptNode.dataset.promptId;
   if (promptId) {
-    await insertPromptById(promptId);
+    await runPromptPrimaryAction(promptId);
   }
 };
 
@@ -1425,6 +2153,9 @@ const ensurePromptModal = () => {
   const existingModal = document.getElementById(PROMPT_MODAL_ID);
   if (existingModal) {
     existingModal.classList.add("is-companion");
+    ensurePromptBehaviorPanelHost(existingModal);
+    ensurePromptSettingsOutsidePointerListener();
+    ensurePromptAutoAttachListeners();
     enablePromptCompanionDrag();
     return existingModal;
   }
@@ -1442,18 +2173,56 @@ const ensurePromptModal = () => {
       <div class="chatgpt-toolkit-prompt-header">
         <div class="chatgpt-toolkit-prompt-header-main">
           <strong>${t("prompt.title")}</strong>
-          <span class="chatgpt-toolkit-prompt-subtitle" data-prompt-label="subtitle">${t("prompt.empty")}</span>
-        </div>
+                  </div>
         <button type="button" class="chatgpt-toolkit-prompt-close" data-prompt-action="close">${t("prompt.close")}</button>
       </div>
       <div id="${PROMPT_TOAST_ID}" class="chatgpt-toolkit-prompt-toast" aria-live="polite"></div>
       <div class="chatgpt-toolkit-prompt-filters">
         <p class="chatgpt-toolkit-prompt-filters-title" data-prompt-label="filters">${t("toolbar.searchSection")}</p>
-        <div class="chatgpt-toolkit-prompt-filters-grid">
+        <div class="chatgpt-toolkit-prompt-search-row">
           <input id="chatgpt-toolkit-prompt-search" type="text" placeholder="${t("prompt.searchPlaceholder")}" />
+        </div>
+        <div class="chatgpt-toolkit-prompt-tools-row">
           <select id="chatgpt-toolkit-prompt-category-filter">
             <option value="all">${t("prompt.allCategories")}</option>
           </select>
+          <span id="chatgpt-toolkit-prompt-count" class="chatgpt-toolkit-prompt-footer-count">${t("prompt.count", { visible: 0, total: 0 })}</span>
+          <button
+            type="button"
+            class="chatgpt-toolkit-prompt-settings-toggle"
+            data-prompt-action="open-settings"
+            aria-expanded="false"
+            aria-controls="chatgpt-toolkit-prompt-behavior-panel"
+            title="${t("prompt.behaviorOpen")}"
+          >
+            \u2699
+          </button>
+        </div>
+        <div id="chatgpt-toolkit-prompt-behavior-panel" class="chatgpt-toolkit-prompt-behavior-panel">
+          <div class="chatgpt-toolkit-prompt-behavior-group">
+            <p class="chatgpt-toolkit-prompt-behavior-title" data-prompt-label="behavior-click-title">${t("prompt.behaviorClickTitle")}</p>
+            <label class="chatgpt-toolkit-prompt-behavior-option">
+              <input type="radio" name="chatgpt-toolkit-prompt-click-action" value="insert" />
+              <span data-prompt-label="behavior-click-insert">${t("prompt.behaviorClickInsert")}</span>
+            </label>
+            <label class="chatgpt-toolkit-prompt-behavior-option">
+              <input type="radio" name="chatgpt-toolkit-prompt-click-action" value="copy" />
+              <span data-prompt-label="behavior-click-copy">${t("prompt.behaviorClickCopy")}</span>
+            </label>
+          </div>
+          <div class="chatgpt-toolkit-prompt-behavior-group">
+            <p class="chatgpt-toolkit-prompt-behavior-title" data-prompt-label="behavior-auto-title">${t("prompt.behaviorAutoAttachTitle")}</p>
+            <label class="chatgpt-toolkit-prompt-behavior-option">
+              <input id="chatgpt-toolkit-prompt-auto-attach-enabled" type="checkbox" />
+              <span data-prompt-label="behavior-auto-enabled">${t("prompt.behaviorAutoAttachEnabled")}</span>
+            </label>
+            <label class="chatgpt-toolkit-prompt-behavior-option">
+              <input id="chatgpt-toolkit-prompt-auto-attach-dedup" type="checkbox" />
+              <span data-prompt-label="behavior-auto-dedup">${t("prompt.behaviorAutoAttachDedup")}</span>
+            </label>
+            <p class="chatgpt-toolkit-prompt-behavior-title" data-prompt-label="behavior-auto-list-title">${t("prompt.behaviorAutoAttachListTitle")}</p>
+            <div id="chatgpt-toolkit-prompt-auto-attach-list" class="chatgpt-toolkit-prompt-behavior-list"></div>
+          </div>
         </div>
       </div>
       <div id="chatgpt-toolkit-prompt-list" class="chatgpt-toolkit-prompt-list"></div>
@@ -1472,7 +2241,6 @@ const ensurePromptModal = () => {
         <button type="button" class="chatgpt-toolkit-prompt-add" data-prompt-action="add">${t("prompt.add")}</button>
       </div>
       <div class="chatgpt-toolkit-prompt-footer">
-        <span id="chatgpt-toolkit-prompt-count" class="chatgpt-toolkit-prompt-footer-count">${t("prompt.count", { visible: 0, total: 0 })}</span>
         <div class="chatgpt-toolkit-prompt-footer-actions">
           <button type="button" data-prompt-action="import">${t("prompt.importJson")}</button>
           <button type="button" data-prompt-action="export">${t("prompt.exportJson")}</button>
@@ -1483,6 +2251,7 @@ const ensurePromptModal = () => {
   `;
 
   document.body.appendChild(modal);
+  ensurePromptBehaviorPanelHost(modal);
   syncToolkitTheme();
 
   modal.addEventListener("click", (event) => {
@@ -1491,7 +2260,13 @@ const ensurePromptModal = () => {
 
   modal.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
-      closePromptModal();
+      if (promptState.settingsOpen) {
+        event.preventDefault();
+        setPromptSettingsOpen(false);
+      } else {
+        closePromptModal();
+      }
+      return;
     }
 
     const target = event.target;
@@ -1529,6 +2304,68 @@ const ensurePromptModal = () => {
     });
   }
 
+  if (elements?.clickInsertRadio instanceof HTMLInputElement) {
+    elements.clickInsertRadio.addEventListener("change", () => {
+      ensurePromptBehaviorSettingsLoaded();
+      const settings = getPromptBehaviorSettings();
+      settings.clickAction = "insert";
+      promptState.behaviorSettings = settings;
+      persistPromptBehaviorSettings();
+      renderPromptList();
+    });
+  }
+
+  if (elements?.clickCopyRadio instanceof HTMLInputElement) {
+    elements.clickCopyRadio.addEventListener("change", () => {
+      ensurePromptBehaviorSettingsLoaded();
+      const settings = getPromptBehaviorSettings();
+      settings.clickAction = "copy";
+      promptState.behaviorSettings = settings;
+      persistPromptBehaviorSettings();
+      renderPromptList();
+    });
+  }
+
+  if (elements?.autoAttachEnabledInput instanceof HTMLInputElement) {
+    elements.autoAttachEnabledInput.addEventListener("change", () => {
+      ensurePromptBehaviorSettingsLoaded();
+      const settings = getPromptBehaviorSettings();
+      settings.autoAttachEnabled = elements.autoAttachEnabledInput.checked;
+      promptState.behaviorSettings = settings;
+      persistPromptBehaviorSettings();
+      renderPromptBehaviorSettings();
+    });
+  }
+
+  if (elements?.autoAttachDedupInput instanceof HTMLInputElement) {
+    elements.autoAttachDedupInput.addEventListener("change", () => {
+      ensurePromptBehaviorSettingsLoaded();
+      const settings = getPromptBehaviorSettings();
+      settings.autoAttachDedupEnabled = elements.autoAttachDedupInput.checked;
+      promptState.behaviorSettings = settings;
+      persistPromptBehaviorSettings();
+      renderPromptBehaviorSettings();
+    });
+  }
+
+  if (elements?.autoAttachList instanceof HTMLElement) {
+    elements.autoAttachList.addEventListener("change", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement)) {
+        return;
+      }
+      if (target.dataset.promptBehaviorAction !== "toggle-auto-attach-item") {
+        return;
+      }
+      const promptId = target.dataset.behaviorPromptId;
+      if (!promptId) {
+        return;
+      }
+      updateAutoAttachSelection(promptId, target.checked);
+      renderPromptBehaviorSettings();
+    });
+  }
+
   if (elements?.fileInput instanceof HTMLInputElement) {
     elements.fileInput.addEventListener("change", () => {
       void importPromptLibrary(elements.fileInput);
@@ -1540,6 +2377,8 @@ const ensurePromptModal = () => {
     restorePromptCompanionPosition();
     ensurePromptCompanionGlobalListeners();
   }
+  ensurePromptSettingsOutsidePointerListener();
+  ensurePromptAutoAttachListeners();
 
   return modal;
 };
@@ -1551,15 +2390,20 @@ const openPromptModal = async () => {
   }
 
   await ensurePromptLibraryLoaded();
+  ensurePromptBehaviorSettingsLoaded();
   syncToolkitTheme();
   applyPromptFilters();
   refreshPromptLocalization();
 
   promptState.isOpen = true;
+  promptState.settingsOpen = false;
   modal.classList.add("is-visible");
   modal.classList.add("is-companion");
   hidePromptToast();
   restorePromptCompanionPosition();
   ensurePromptCompanionGlobalListeners();
+  ensurePromptSettingsOutsidePointerListener();
+  ensurePromptAutoAttachListeners();
   enablePromptCompanionDrag();
 };
+

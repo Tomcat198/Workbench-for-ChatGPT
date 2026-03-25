@@ -83,13 +83,21 @@ const getGroupAssistantMessage = (group) => {
   const assistantKeys = Array.isArray(group.assistantMessageKeys)
     ? group.assistantMessageKeys
     : [];
+  let fallback = null;
   for (const key of assistantKeys) {
     const message = getMessageByKey(key);
-    if (message) {
+    if (!message) {
+      continue;
+    }
+    if (!fallback) {
+      fallback = message;
+    }
+    const semanticText = normalizeTimelineText(message.text || message.syntheticText || "");
+    if (semanticText || message.hasSemanticContent) {
       return message;
     }
   }
-  return null;
+  return fallback;
 };
 
 const getTimelineSourceNodes = () => {
@@ -138,6 +146,19 @@ const getConfiguredTimelineMaxNodes = () => {
   }
 
   return DEFAULT_SETTINGS.timelineMaxNodes;
+};
+
+const getConfiguredTimelineSampleNodes = () => {
+  const settingsValue = Number(state?.settings?.timelineSampleNodes);
+  if (Number.isFinite(settingsValue)) {
+    return Math.max(1, Math.round(settingsValue));
+  }
+
+  if (Number.isFinite(TIMELINE_VISIBLE_NODE_CAPACITY)) {
+    return Math.max(1, Math.round(TIMELINE_VISIBLE_NODE_CAPACITY));
+  }
+
+  return DEFAULT_SETTINGS.timelineSampleNodes;
 };
 
 const parseTimelineTimestampCandidate = (value) => {
@@ -304,10 +325,11 @@ const isSameTimelineSource = (messages, signature) =>
 
 const calculateTimelineContentHeight = (trackHeight, itemCount) => {
   const safeTrackHeight = Math.max(1, Math.round(trackHeight));
-  if (itemCount <= TIMELINE_VISIBLE_NODE_CAPACITY) {
+  const sampleNodes = getConfiguredTimelineSampleNodes();
+  if (itemCount <= sampleNodes) {
     return safeTrackHeight;
   }
-  const ratio = itemCount / TIMELINE_VISIBLE_NODE_CAPACITY;
+  const ratio = itemCount / sampleNodes;
   return Math.max(safeTrackHeight, Math.round(safeTrackHeight * ratio));
 };
 
@@ -536,8 +558,8 @@ const buildTimelineItemsFromSourceNodes = (groups) => {
     previousTimestamp = timestamp;
     const userMessage = getGroupUserMessage(group);
     const assistantMessage = getGroupAssistantMessage(group);
-    const qText = normalizeTimelineText(userMessage?.text || "");
-    const aText = normalizeTimelineText(assistantMessage?.text || "");
+    const qText = normalizeTimelineText(userMessage?.text || userMessage?.syntheticText || "");
+    const aText = normalizeTimelineText(assistantMessage?.text || assistantMessage?.syntheticText || "");
     let previewSeed = "";
     if (qText && aText) {
       previewSeed = `Q: ${qText} | A: ${aText}`;

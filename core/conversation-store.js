@@ -103,7 +103,11 @@ const isMessageHidden = (node) => {
 const buildStoreMessage = (node, index, conversationKey) => {
   const key = getMessageDomKey(node, index);
   const role = getMessageRoleFromDom(node);
-  const text = getMessageTextFromDom(node);
+  const semantic =
+    typeof getMessageSemanticFromDom === "function"
+      ? getMessageSemanticFromDom(node)
+      : null;
+  const text = semantic?.text || getMessageTextFromDom(node);
   const domTurnKey =
     typeof getMessageTurnKeyFromDom === "function"
       ? getMessageTurnKeyFromDom(node)
@@ -113,6 +117,11 @@ const buildStoreMessage = (node, index, conversationKey) => {
     index: index + 1,
     role,
     text,
+    rawText: semantic?.rawText || "",
+    syntheticText: semantic?.syntheticText || "",
+    semanticKind: semantic?.semanticKind || "",
+    hasSemanticContent: Boolean(semantic?.hasSemanticContent || text),
+    isSynthetic: Boolean(semantic?.isSynthetic && !semantic?.rawText),
     turnKey: domTurnKey,
     node,
     conversationKey,
@@ -414,7 +423,7 @@ const refreshMessageStore = () => {
 
   const messages = nodes
     .map((node, index) => buildStoreMessage(node, index, conversationKey))
-    .filter((item) => item.key && item.text);
+    .filter((item) => item.key && (item.hasSemanticContent || item.text));
 
   const byKey = new Map(messages.map((item) => [item.key, item]));
   const turns = buildTurnsFromMessages(messages, conversationKey || "");

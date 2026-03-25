@@ -8,6 +8,32 @@ const SETTINGS_STORAGE_KEY = "chatgpt-toolkit-settings-v1";
 const TOOLBAR_POSITION_KEY = "chatgpt-toolkit-toolbar-position-v1";
 const MINIMIZED_POSITION_V2_KEY = "chatgpt-toolkit-minimized-position-v2";
 
+const normalizePromptBehaviorSettings = (rawSettings) => {
+  const source = rawSettings && typeof rawSettings === "object" ? rawSettings : {};
+  const clickAction = source.clickAction === "copy" ? "copy" : "insert";
+  const autoAttachEnabled = sanitizeBooleanSettingsValue(source.autoAttachEnabled, false);
+  const autoAttachDedupEnabled = sanitizeBooleanSettingsValue(source.autoAttachDedupEnabled, true);
+  const autoAttachTrigger =
+    source.autoAttachTrigger === "beforeSendEach" ||
+    source.autoAttachTrigger === "beforeSendFirstInConversation"
+      ? "beforeSendEach"
+      : "beforeSendEach";
+  const autoAttachPromptIds = Array.isArray(source.autoAttachPromptIds)
+    ? source.autoAttachPromptIds
+        .map((value) => (typeof value === "string" ? value.trim() : ""))
+        .filter(Boolean)
+    : [];
+
+  return {
+    ...DEFAULT_PROMPT_BEHAVIOR_SETTINGS,
+    clickAction,
+    autoAttachEnabled,
+    autoAttachTrigger,
+    autoAttachPromptIds,
+    autoAttachDedupEnabled,
+  };
+};
+
 const saveMinimizedPosition = (position) => {
   try {
     localStorage.setItem(POSITION_KEY, JSON.stringify(position));
@@ -267,6 +293,15 @@ const sanitizeBooleanSettingsValue = (value, fallback = false) => {
 
 const normalizeSettings = (rawSettings) => {
   const source = rawSettings && typeof rawSettings === "object" ? rawSettings : {};
+  const timelineMaxNodes = sanitizeSettingsValue(
+    source.timelineMaxNodes,
+    DEFAULT_SETTINGS.timelineMaxNodes,
+  );
+  const timelineSampleNodes = sanitizeSettingsValue(
+    source.timelineSampleNodes,
+    DEFAULT_SETTINGS.timelineSampleNodes,
+  );
+
   return {
     autoOptimizeEnabled: sanitizeBooleanSettingsValue(
       source.autoOptimizeEnabled,
@@ -279,7 +314,8 @@ const normalizeSettings = (rawSettings) => {
       5000,
     ),
     keepLatest: sanitizeSettingsValue(source.keepLatest, DEFAULT_SETTINGS.keepLatest),
-    timelineMaxNodes: sanitizeSettingsValue(source.timelineMaxNodes, DEFAULT_SETTINGS.timelineMaxNodes),
+    timelineMaxNodes,
+    timelineSampleNodes: Math.min(timelineSampleNodes, timelineMaxNodes),
   };
 };
 
@@ -300,6 +336,29 @@ const saveSettings = async (nextSettings) => {
   const normalized = normalizeSettings(nextSettings);
   try {
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(normalized));
+  } catch (error) {
+    // Ignore storage write failures.
+  }
+  return normalized;
+};
+
+const loadPromptBehaviorSettings = () => {
+  try {
+    const stored = localStorage.getItem(PROMPT_BEHAVIOR_STORAGE_KEY);
+    if (!stored) {
+      return { ...DEFAULT_PROMPT_BEHAVIOR_SETTINGS };
+    }
+    const parsed = JSON.parse(stored);
+    return normalizePromptBehaviorSettings(parsed);
+  } catch (error) {
+    return { ...DEFAULT_PROMPT_BEHAVIOR_SETTINGS };
+  }
+};
+
+const savePromptBehaviorSettings = (nextSettings) => {
+  const normalized = normalizePromptBehaviorSettings(nextSettings);
+  try {
+    localStorage.setItem(PROMPT_BEHAVIOR_STORAGE_KEY, JSON.stringify(normalized));
   } catch (error) {
     // Ignore storage write failures.
   }

@@ -391,12 +391,13 @@ const buildToolbar = () => {
   container.id = TOOLKIT_ID;
   container.innerHTML = `
     <div class="chatgpt-toolkit-header">
-      <strong class="chatgpt-toolkit-title">${t("toolbar.title")}</strong>
-      <button type="button" class="chatgpt-toolkit-minimize" data-action="minimize" aria-label="${t("toolbar.minimizeAria")}">
-        ${t("toolbar.minimize")}
-      </button>
-      <div class="chatgpt-toolkit-header-meta">
-        <span class="chatgpt-toolkit-subtitle">${t("toolbar.subtitle")}</span>
+      <div class="chatgpt-toolkit-header-title-row">
+        <strong class="chatgpt-toolkit-title">${t("toolbar.title")}</strong>
+        <button type="button" class="chatgpt-toolkit-minimize" data-action="minimize" aria-label="${t("toolbar.minimizeAria")}">
+          ${t("toolbar.minimize")}
+        </button>
+      </div>
+      <div class="chatgpt-toolkit-header-meta chatgpt-toolkit-header-meta-row">
         <label class="chatgpt-toolkit-language" for="chatgpt-toolkit-language-select">
           <span class="chatgpt-toolkit-language-label">${t("language.label")}</span>
           <select id="chatgpt-toolkit-language-select" class="chatgpt-toolkit-language-select" aria-label="${t("language.label")}">
@@ -406,40 +407,48 @@ const buildToolbar = () => {
       </div>
     </div>
     <div class="chatgpt-toolkit-actions">
-      <button type="button" class="chatgpt-toolkit-button primary" data-action="collapse">
-        ${t("toolbar.collapse")}
-      </button>
-      <button type="button" class="chatgpt-toolkit-button secondary" data-action="restore">
-        ${t("toolbar.restore")}
-      </button>
-      <div class="chatgpt-toolkit-export-group" data-export-group>
-        <button
-          type="button"
-          class="chatgpt-toolkit-button secondary"
-          data-action="export-toggle"
-          aria-expanded="false"
-          aria-controls="chatgpt-toolkit-export-menu"
-        >
-          ${t("toolbar.export")}
+      <div class="chatgpt-toolkit-actions-main">
+        <button type="button" class="chatgpt-toolkit-button primary" data-action="collapse">
+          ${t("toolbar.collapse")}
         </button>
-        <div id="chatgpt-toolkit-export-menu" class="chatgpt-toolkit-export-menu" data-export-menu>
-          <button type="button" class="chatgpt-toolkit-button secondary" data-action="export-json">
-            ${t("toolbar.exportJson")}
+        <button type="button" class="chatgpt-toolkit-button primary" data-action="prompt-library">
+          ${t("toolbar.promptLibrary")}
+        </button>
+      </div>
+      <div class="chatgpt-toolkit-actions-session">
+        <button type="button" class="chatgpt-toolkit-button secondary" data-action="restore">
+          ${t("toolbar.restore")}
+        </button>
+      </div>
+      <div class="chatgpt-toolkit-actions-output">
+        <div class="chatgpt-toolkit-export-group" data-export-group>
+          <button
+            type="button"
+            class="chatgpt-toolkit-button secondary"
+            data-action="export-toggle"
+            aria-expanded="false"
+            aria-controls="chatgpt-toolkit-export-menu"
+          >
+            ${t("toolbar.export")}
           </button>
-          <button type="button" class="chatgpt-toolkit-button secondary" data-action="export-markdown">
-            ${t("toolbar.exportMarkdown")}
-          </button>
+          <div id="chatgpt-toolkit-export-menu" class="chatgpt-toolkit-export-menu" data-export-menu>
+            <button type="button" class="chatgpt-toolkit-button secondary" data-action="export-json">
+              ${t("toolbar.exportJson")}
+            </button>
+            <button type="button" class="chatgpt-toolkit-button secondary" data-action="export-markdown">
+              ${t("toolbar.exportMarkdown")}
+            </button>
+          </div>
         </div>
       </div>
-      <button type="button" class="chatgpt-toolkit-button entry" data-action="prompt-library">
-        ${t("toolbar.promptLibrary")}
-      </button>
-      <button type="button" class="chatgpt-toolkit-button entry" data-action="timeline-toggle">
-        ${timelineState.visible ? t("toolbar.timelineHide") : t("toolbar.timelineShow")}
-      </button>
-      <button type="button" class="chatgpt-toolkit-button entry" data-action="settings" aria-label="${t("toolbar.settingsAria")}">
-        ${t("toolbar.settings")}
-      </button>
+      <div class="chatgpt-toolkit-actions-tools">
+        <button type="button" class="chatgpt-toolkit-button entry" data-action="timeline-toggle">
+          ${timelineState.visible ? t("toolbar.timelineHide") : t("toolbar.timelineShow")}
+        </button>
+        <button type="button" class="chatgpt-toolkit-button entry" data-action="settings" aria-label="${t("toolbar.settingsAria")}">
+          ${t("toolbar.settings")}
+        </button>
+      </div>
     </div>
     <div class="chatgpt-toolkit-search">
       <p class="chatgpt-toolkit-search-title">${t("toolbar.searchSection")}</p>
@@ -447,7 +456,7 @@ const buildToolbar = () => {
         <input type="text" id="chatgpt-toolkit-search-input" class="chatgpt-toolkit-search-input" placeholder="${t("toolbar.searchPlaceholder")}" />
         <button type="button" class="chatgpt-toolkit-search-btn" data-action="search" title="${t("toolbar.searchTitle")}">${t("toolbar.search")}</button>
       </div>
-      <div class="chatgpt-toolkit-search-nav">
+      <div class="chatgpt-toolkit-search-nav chatgpt-toolkit-search-nav-group">
         <button type="button" id="chatgpt-toolkit-search-prev" class="chatgpt-toolkit-nav-btn" data-action="search-prev" disabled title="${t("toolbar.searchPrevTitle")}">${t("toolbar.searchPrev")}</button>
         <span id="chatgpt-toolkit-search-result" class="chatgpt-toolkit-search-result"></span>
         <button type="button" id="chatgpt-toolkit-search-next" class="chatgpt-toolkit-nav-btn" data-action="search-next" disabled title="${t("toolbar.searchNextTitle")}">${t("toolbar.searchNext")}</button>
@@ -462,6 +471,7 @@ const buildToolbar = () => {
     isExportMenuOpen = next;
     const menu = container.querySelector("[data-export-menu]");
     const toggle = container.querySelector('[data-action="export-toggle"]');
+    container.classList.toggle("is-export-menu-open", next);
     if (menu instanceof HTMLElement) {
       menu.classList.toggle("is-open", next);
     }
@@ -470,7 +480,7 @@ const buildToolbar = () => {
     }
   };
 
-  container.addEventListener("click", (event) => {
+  container.addEventListener("click", async (event) => {
     const target = event.target;
     const inExportGroup = target instanceof Element && target.closest("[data-export-group]");
     if (isExportMenuOpen && !inExportGroup) {
@@ -497,9 +507,12 @@ const buildToolbar = () => {
       collapse: () => collapseOldMessages(),
       restore: () => restoreMessages(),
       "export-toggle": () => setExportMenuOpen(!isExportMenuOpen),
-      "export-json": () => {
-        exportMessages();
-        setExportMenuOpen(false);
+      "export-json": async () => {
+        try {
+          await exportMessages();
+        } finally {
+          setExportMenuOpen(false);
+        }
       },
       "export-markdown": () => {
         exportMessagesAsMarkdown();
@@ -517,7 +530,20 @@ const buildToolbar = () => {
     };
 
     const handler = actionHandlers[action];
-    if (handler) handler();
+    if (!handler) {
+      return;
+    }
+    try {
+      const result = handler();
+      if (result && typeof result.then === "function") {
+        await result;
+      }
+    } catch (error) {
+      console.warn("[floating-toolbar] Action handler failed.", {
+        action,
+        error,
+      });
+    }
   });
 
   // 监听搜索输入框的回车事件

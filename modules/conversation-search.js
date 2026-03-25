@@ -270,7 +270,68 @@ const getNextAssistantSummary = (messages, index) => {
   return "";
 };
 
+const getMessageSummaryByKey = (key) => {
+  if (!key) {
+    return "";
+  }
+  const message = getMessageBySearchKey(key);
+  if (!message) {
+    return "";
+  }
+  return trimSummary(message.text || message.syntheticText || "");
+};
+
+const getGroupAssistantSummary = (group, excludeKey = "") => {
+  if (!group || !Array.isArray(group.assistantMessageKeys)) {
+    return "";
+  }
+  let fallback = "";
+  for (const key of group.assistantMessageKeys) {
+    if (!key || key === excludeKey) {
+      continue;
+    }
+    const message = getMessageBySearchKey(key);
+    if (!message) {
+      continue;
+    }
+    const summary = trimSummary(message.text || message.syntheticText || "");
+    if (!summary) {
+      continue;
+    }
+    if (message.hasSemanticContent || message.text) {
+      return summary;
+    }
+    if (!fallback) {
+      fallback = summary;
+    }
+  }
+  return fallback;
+};
+
 const buildContextLine = (messages, index, message) => {
+  const group = typeof getGroupByMessageKey === "function" ? getGroupByMessageKey(message?.key) : null;
+  if (group) {
+    const groupQuestion = getMessageSummaryByKey(group.userMessageKey);
+    const groupAssistant = getGroupAssistantSummary(group, message?.role === "assistant" ? message?.key : "");
+    if (message?.role === "assistant") {
+      if (groupQuestion) {
+        return `Q: ${groupQuestion}`;
+      }
+    } else {
+      const self = trimSummary(message?.text || "");
+      const question = self || groupQuestion;
+      if (question && groupAssistant) {
+        return `Q: ${question} | A: ${groupAssistant}`;
+      }
+      if (question) {
+        return `Q: ${question}`;
+      }
+      if (groupAssistant) {
+        return `A: ${groupAssistant}`;
+      }
+    }
+  }
+
   if (message?.role === "assistant") {
     const prevUser = getPreviousUserSummary(messages, index);
     return prevUser ? `Q: ${prevUser}` : "";
@@ -362,7 +423,36 @@ const doesMessageStillMatchActiveQuery = (message) => {
   return messageText.includes(query);
 };
 const getPairedContextKey = (activeMessage) => {
-  if (!activeMessage || typeof getAllMessages !== "function") {
+  if (!activeMessage) {
+    return null;
+  }
+
+  const activeGroup = typeof getGroupByMessageKey === "function" ? getGroupByMessageKey(activeMessage.key) : null;
+  if (activeGroup) {
+    if (activeMessage.role === "assistant") {
+      return activeGroup.userMessageKey || null;
+    }
+    if (activeMessage.role === "user") {
+      const assistantKeys = Array.isArray(activeGroup.assistantMessageKeys)
+        ? activeGroup.assistantMessageKeys
+        : [];
+      for (const key of assistantKeys) {
+        if (!key || key === activeMessage.key) {
+          continue;
+        }
+        const message = getMessageBySearchKey(key);
+        if (!message) {
+          continue;
+        }
+        if (normalizeSearchText(message.text || message.syntheticText || "") || message.hasSemanticContent) {
+          return key;
+        }
+      }
+      return assistantKeys.find((key) => key && key !== activeMessage.key) || null;
+    }
+  }
+
+  if (typeof getAllMessages !== "function") {
     return null;
   }
   const messages = getAllMessages();

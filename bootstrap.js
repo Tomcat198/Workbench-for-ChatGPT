@@ -4,6 +4,41 @@
 if (!window[TOOLKIT_BOOTSTRAP_FLAG]) {
   window[TOOLKIT_BOOTSTRAP_FLAG] = true;
 
+  const hasAnySavedLayoutState = () => {
+    try {
+      // Prompt panel mode/position record takes highest priority:
+      // once this key exists (manual/anchored/legacy), it's no longer first-run.
+      if (localStorage.getItem(PROMPT_PANEL_POSITION_KEY) !== null) {
+        return true;
+      }
+    } catch (error) {
+      // Ignore storage read failures and continue with runtime checks.
+    }
+
+    if (loadToolbarPosition()) {
+      return true;
+    }
+    if (loadPromptPanelPosition()) {
+      return true;
+    }
+    if (loadTimelinePosition()) {
+      return true;
+    }
+    if (loadMinimizedPositionV2()) {
+      return true;
+    }
+
+    try {
+      if (localStorage.getItem(TIMELINE_VISIBLE_KEY) !== null) {
+        return true;
+      }
+    } catch (error) {
+      // Ignore storage read failures.
+    }
+
+    return false;
+  };
+
   timelineState.visible = loadTimelineVisibility();
   timelineState.manualPosition = loadTimelinePosition();
 
@@ -54,25 +89,37 @@ if (!window[TOOLKIT_BOOTSTRAP_FLAG]) {
     return Math.max(min, Math.min(max, Math.round(numeric)));
   };
 
-  const normalizeSettingsInput = (input) => ({
-    autoOptimizeEnabled:
-      typeof input?.autoOptimizeEnabled === "boolean"
-        ? input.autoOptimizeEnabled
-        : DEFAULT_SETTINGS.autoOptimizeEnabled,
-    autoOptimizeThreshold: clampInteger(
-      input?.autoOptimizeThreshold,
-      DEFAULT_SETTINGS.autoOptimizeThreshold,
-      1,
-      5000,
-    ),
-    keepLatest: clampInteger(input?.keepLatest, DEFAULT_SETTINGS.keepLatest, 1, 5000),
-    timelineMaxNodes: clampInteger(
+  const normalizeSettingsInput = (input) => {
+    const timelineMaxNodes = clampInteger(
       input?.timelineMaxNodes,
       DEFAULT_SETTINGS.timelineMaxNodes,
       1,
       5000,
-    ),
-  });
+    );
+    const timelineSampleNodes = clampInteger(
+      input?.timelineSampleNodes,
+      DEFAULT_SETTINGS.timelineSampleNodes,
+      1,
+      5000,
+    );
+
+    return {
+      autoOptimizeEnabled:
+        typeof input?.autoOptimizeEnabled === "boolean"
+          ? input.autoOptimizeEnabled
+          : DEFAULT_SETTINGS.autoOptimizeEnabled,
+      autoOptimizeThreshold: clampInteger(
+        input?.autoOptimizeThreshold,
+        DEFAULT_SETTINGS.autoOptimizeThreshold,
+        1,
+        5000,
+      ),
+      keepLatest: clampInteger(input?.keepLatest, DEFAULT_SETTINGS.keepLatest, 1, 5000),
+      timelineMaxNodes,
+      // Ensure UI value and runtime value are consistent.
+      timelineSampleNodes: Math.min(timelineSampleNodes, timelineMaxNodes),
+    };
+  };
 
   const getSettingsModalElement = () => document.getElementById(SETTINGS_MODAL_ID);
 
@@ -120,6 +167,10 @@ if (!window[TOOLKIT_BOOTSTRAP_FLAG]) {
     if (timelineMaxInput instanceof HTMLInputElement) {
       timelineMaxInput.value = String(normalized.timelineMaxNodes);
     }
+    const timelineSampleInput = form.elements.namedItem("timelineSampleNodes");
+    if (timelineSampleInput instanceof HTMLInputElement) {
+      timelineSampleInput.value = String(normalized.timelineSampleNodes);
+    }
 
     syncSettingsThresholdState();
   };
@@ -138,6 +189,7 @@ if (!window[TOOLKIT_BOOTSTRAP_FLAG]) {
     const thresholdInput = form.elements.namedItem("autoOptimizeThreshold");
     const keepLatestInput = form.elements.namedItem("keepLatest");
     const timelineMaxInput = form.elements.namedItem("timelineMaxNodes");
+    const timelineSampleInput = form.elements.namedItem("timelineSampleNodes");
 
     return normalizeSettingsInput({
       autoOptimizeEnabled: autoEnabledInput instanceof HTMLInputElement ? autoEnabledInput.checked : false,
@@ -150,6 +202,10 @@ if (!window[TOOLKIT_BOOTSTRAP_FLAG]) {
         timelineMaxInput instanceof HTMLInputElement
           ? timelineMaxInput.value
           : DEFAULT_SETTINGS.timelineMaxNodes,
+      timelineSampleNodes:
+        timelineSampleInput instanceof HTMLInputElement
+          ? timelineSampleInput.value
+          : DEFAULT_SETTINGS.timelineSampleNodes,
     });
   };
 
@@ -214,9 +270,19 @@ if (!window[TOOLKIT_BOOTSTRAP_FLAG]) {
       timelineLabel.textContent = `${t("settings.timelineMaxNodes")} (${t("settings.unitQaNodes")})`;
     }
 
+    const timelineSampleLabel = modal.querySelector('[data-settings-label="timeline-sample"]');
+    if (timelineSampleLabel instanceof HTMLElement) {
+      timelineSampleLabel.textContent = `${t("settings.timelineSampleNodes")} (${t("settings.unitQaNodes")})`;
+    }
+
     const defaultsBtn = modal.querySelector('[data-settings-action="defaults"]');
     if (defaultsBtn instanceof HTMLButtonElement) {
       defaultsBtn.textContent = t("settings.restoreDefaults");
+    }
+
+    const resetUiSettingsBtn = modal.querySelector('[data-settings-action="reset-ui-settings"]');
+    if (resetUiSettingsBtn instanceof HTMLButtonElement) {
+      resetUiSettingsBtn.textContent = t("settings.resetUiAndSettings");
     }
 
     const saveBtn = modal.querySelector('[data-settings-action="save"]');
@@ -248,6 +314,118 @@ if (!window[TOOLKIT_BOOTSTRAP_FLAG]) {
     applySavedSettingsRuntime(persisted);
     updateStatusByKey("status.settingsSaved", "success");
     closeSettingsModal();
+  };
+
+  const clearLayoutStateStorage = () => {
+    const keys = [
+      TOOLBAR_POSITION_KEY,
+      MINIMIZED_POSITION_V2_KEY,
+      POSITION_KEY,
+      PROMPT_PANEL_POSITION_KEY,
+      TIMELINE_POSITION_KEY,
+      TIMELINE_VISIBLE_KEY,
+    ];
+
+    keys.forEach((key) => {
+      try {
+        localStorage.removeItem(key);
+      } catch (error) {
+        // Ignore storage clear failures.
+      }
+    });
+  };
+
+  const resetPromptBehaviorSettingsToDefault = () => {
+    const defaults = { ...DEFAULT_PROMPT_BEHAVIOR_SETTINGS };
+    promptState.behaviorSettings = defaults;
+    promptState.behaviorLoaded = true;
+
+    if (typeof savePromptBehaviorSettings === "function") {
+      savePromptBehaviorSettings(defaults);
+    }
+
+    if (promptState.isOpen) {
+      if (typeof renderPromptBehaviorSettings === "function") {
+        renderPromptBehaviorSettings();
+      }
+      if (typeof renderPromptList === "function") {
+        renderPromptList();
+      }
+    }
+  };
+
+  const applyDefaultLayoutRuntime = () => {
+    if (typeof setToolbarVisibility === "function") {
+      setToolbarVisibility(true);
+    }
+
+    const toolbar = document.getElementById(TOOLKIT_ID);
+    if (toolbar instanceof HTMLElement) {
+      state.toolbarPosition = null;
+      if (typeof applyDefaultToolbarAnchorPosition === "function") {
+        applyDefaultToolbarAnchorPosition(toolbar);
+      } else if (typeof ensureToolbarVisible === "function") {
+        ensureToolbarVisible();
+      }
+    }
+
+    const minimized = ensureMinimizedButton();
+    if (minimized instanceof HTMLElement) {
+      state.minimizedButtonPositionV2 = null;
+      if (typeof applyMinimizedPosition === "function") {
+        applyMinimizedPosition(minimized);
+      } else if (typeof ensureButtonVisible === "function") {
+        ensureButtonVisible(minimized);
+      }
+    }
+
+    if (typeof window.resetPromptCompanionToAnchor === "function") {
+      window.resetPromptCompanionToAnchor();
+    } else {
+      promptState.positionMode = "anchored";
+      promptState.manualPosition = null;
+      if (typeof window.repositionPromptCompanion === "function") {
+        window.repositionPromptCompanion({ force: true });
+      }
+    }
+
+    timelineState.manualPosition = null;
+    const defaultTimelineVisible = loadTimelineVisibility();
+    if (typeof setTimelineVisibility === "function") {
+      setTimelineVisibility(defaultTimelineVisible, { persist: false });
+    }
+    if (typeof updateTimelinePosition === "function") {
+      updateTimelinePosition();
+    }
+  };
+
+  const resetUiAndSettingsState = async () => {
+    let persisted = { ...DEFAULT_SETTINGS };
+
+    if (typeof saveSettings === "function") {
+      try {
+        persisted = await saveSettings(DEFAULT_SETTINGS);
+      } catch (error) {
+        persisted = { ...DEFAULT_SETTINGS };
+      }
+    }
+
+    applySavedSettingsRuntime(persisted);
+    syncSettingsFormWithState();
+
+    clearLayoutStateStorage();
+    resetPromptBehaviorSettingsToDefault();
+
+    if (typeof window.applyInitialLayoutPresetOnce === "function") {
+      try {
+        window.applyInitialLayoutPresetOnce();
+      } catch (error) {
+        // Ignore preset failures and continue fallback.
+      }
+    }
+
+    applyDefaultLayoutRuntime();
+    updateStatusByKey("status.resetUiAndSettingsDone", "success");
   };
 
   const restoreDefaultSettingsFromModal = async () => {
@@ -301,9 +479,14 @@ if (!window[TOOLKIT_BOOTSTRAP_FLAG]) {
               <span data-settings-label="timeline-max">${t("settings.timelineMaxNodes")} (${t("settings.unitQaNodes")})</span>
               <input type="number" name="timelineMaxNodes" min="1" step="1" />
             </label>
+            <label class="chatgpt-toolkit-settings-field">
+              <span data-settings-label="timeline-sample">${t("settings.timelineSampleNodes")} (${t("settings.unitQaNodes")})</span>
+              <input type="number" name="timelineSampleNodes" min="1" step="1" />
+            </label>
           </div>
           <div class="chatgpt-toolkit-settings-footer">
             <button type="button" class="chatgpt-toolkit-button" data-settings-action="defaults">${t("settings.restoreDefaults")}</button>
+            <button type="button" class="chatgpt-toolkit-button" data-settings-action="reset-ui-settings">${t("settings.resetUiAndSettings")}</button>
             <button type="submit" class="chatgpt-toolkit-button primary" data-settings-action="save">${t("settings.save")}</button>
           </div>
         </form>
@@ -330,6 +513,14 @@ if (!window[TOOLKIT_BOOTSTRAP_FLAG]) {
       }
       if (action === "defaults") {
         void restoreDefaultSettingsFromModal();
+        return;
+      }
+      if (action === "reset-ui-settings") {
+        const confirmed = window.confirm(t("settings.resetUiAndSettingsConfirm"));
+        if (!confirmed) {
+          return;
+        }
+        void resetUiAndSettingsState();
       }
     });
 
@@ -491,6 +682,11 @@ if (!window[TOOLKIT_BOOTSTRAP_FLAG]) {
   attachToolbar();
   ensureSettingsModal();
   renderTimeline();
+
+  if (!hasAnySavedLayoutState() && typeof window.applyInitialLayoutPresetOnce === "function") {
+    window.applyInitialLayoutPresetOnce();
+  }
+
   setupResizeListener();
 
   let observerRafId = 0;

@@ -96,15 +96,38 @@ const extractMessageText = (node) => {
   return "";
 };
 
+const buildSerializablePayloadMessage = (message, index) => {
+  const text = String(message?.text || message?.syntheticText || "").trim();
+  if (!text && !message?.hasSemanticContent) {
+    return null;
+  }
+
+  const payload = {
+    index: index + 1,
+    role: message?.role || "unknown",
+    text,
+  };
+  if (message?.turnKey) {
+    payload.turnKey = message.turnKey;
+  }
+  if (message?.semanticKind) {
+    payload.semanticKind = message.semanticKind;
+  }
+  if (message?.syntheticText) {
+    payload.syntheticText = message.syntheticText;
+  }
+  if (message?.isSynthetic) {
+    payload.isSynthetic = true;
+  }
+  return payload;
+};
+
 const buildMessagePayload = (nodes) => {
   if (!nodes && typeof getAllMessages === "function") {
     return getAllMessages()
-      .filter((message) => message?.text)
-      .map((message, index) => ({
-        index: index + 1,
-        role: message.role || "unknown",
-        text: message.text,
-      }));
+      .filter((message) => message?.text || message?.hasSemanticContent)
+      .map((message, index) => buildSerializablePayloadMessage(message, index))
+      .filter(Boolean);
   }
 
   const seenIds = new Set();
@@ -122,20 +145,33 @@ const buildMessagePayload = (nodes) => {
       }
 
       const role = detectRole(roleNode);
-      const text = extractMessageText(roleNode);
+      const semantic =
+        typeof getMessageSemanticFromDom === "function"
+          ? getMessageSemanticFromDom(roleNode)
+          : null;
+      const text = semantic?.text || extractMessageText(roleNode);
+      const turnKey =
+        typeof getMessageTurnKeyFromDom === "function"
+          ? getMessageTurnKeyFromDom(roleNode || node)
+          : "";
 
-      if (!text) {
+      if (!text && !semantic?.hasSemanticContent) {
         return null;
       }
 
-      return { role, text };
+      return {
+        role,
+        text: text || semantic?.syntheticText || "",
+        turnKey,
+        semanticKind: semantic?.semanticKind || "",
+        syntheticText: semantic?.syntheticText || "",
+        isSynthetic: Boolean(semantic?.isSynthetic),
+        hasSemanticContent: Boolean(semantic?.hasSemanticContent || text),
+      };
     })
     .filter(Boolean)
-    .map((message, index) => ({
-      index: index + 1,
-      role: message.role,
-      text: message.text,
-    }));
+    .map((message, index) => buildSerializablePayloadMessage(message, index))
+    .filter(Boolean);
 };
 
 const updateStatus = (message, tone = "info") => {
