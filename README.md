@@ -298,17 +298,18 @@
 ### 主工作台
 ![主工作台预览](./image/preview.png)
 
-### 提示词 Companion
-![提示词 Companion 预览](./image/preview_1.png)
+### 提示词库面板与时间线导航面板
+![提示词库面板与时间线导航面板预览](./image/preview_2.png)
+
+### 提示词库面板设置
+![提示词库面板设置预览](./image/preview_4.png)
 
 ### 导出与工具区域
-![导出与工具区域预览](./image/preview_2.png)
+![导出与工具区域预览](./image/preview_1.png)
 
 ### 设置面板
 ![设置面板预览](./image/preview_3.png)
 
-### 侧边功能区
-![侧边功能区预览](./image/preview_4.png)
 
 > 预览图仅用于功能展示，具体界面细节请以当前版本为准。
 
