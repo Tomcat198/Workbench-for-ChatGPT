@@ -1,74 +1,321 @@
-[简体中文](./README.md) | English
+English | [简体中文](./README.md)
 
-# Conversation Workbench for ChatGPT 🧰✨
+# Conversation Workbench for ChatGPT 🧰✨💬🚀
 
-🧩 A browser extension focused on improving long ChatGPT conversations by reducing lag through conversation cleanup, with timeline navigation, search, export, prompt management, folder management, and preference settings.
+A browser extension for ChatGPT, continuously refined around **prompt management, long-conversation cleanup, timeline navigation, and export-based review**.  
+It is not just a small utility for “reducing the burden of long chats,” but more like a real **ChatGPT workbench** built for long-term everyday use. 🛠️📚
 
-
----
-
-## 🙌 Acknowledgements 💖
-
-This project was inspired by [bujue3709/chatgpt-Long-conversation-optimization](https://github.com/bujue3709/chatgpt-Long-conversation-optimization).  
-Built on top of the original idea, this repository has been substantially refactored and expanded into an independently maintained derivative improvement.
-
-Many thanks to the original author for the open-source work and inspiration ❤️  
-This project is **not** the official continuation of the original repository and does not represent the original author’s position. If you are looking for the original version, please visit the original repository first.
+If you often use ChatGPT as a writing desk, research desk, coding desk, or review desk, this project is built for exactly that kind of workflow. (*´▽｀)ﾉﾉ
 
 ---
 
-## ✨ Overview 🌟
+## 📚 Table of Contents 🗂️✨
 
-### What problem does this project solve? 🤔💬
-
-If you use ChatGPT as a daily workbench, you have probably run into some of these issues:
-
-- 🐢 Long conversations become increasingly laggy and harder to browse
-- 🧭 Older context becomes difficult to find
-- 📍 There is no intuitive way to jump between conversation segments
-- 📦 Exporting chats, reusing prompts, and managing workflows feel fragmented
-- 🧠 Deep-thinking split replies, image-generation chats, and multi-part responses can make the reading experience feel broken
-
-**Conversation Workbench for ChatGPT** is designed to systematically improve these long-conversation workflow problems.
-
-### What has been reworked and improved compared with the original project? 🔧🚀
-
-This project is **not** a small visual tweak or a minor patch on top of the original implementation. It has been **substantially refactored and expanded** in several key areas:
-
-- 🧠 **Reworked semantics**: the project evolved from a more DOM/message-oriented approach into a clearer `message → turn → QA group` model, so cleanup, navigation, search positioning, and auto-cleanup operate on a more stable semantic unit.
-- 🚀 **Improved long-conversation experience**: the cleanup flow, group-level timeline navigation, and search positioning were redesigned to better address lag, readability, and navigation issues in long chats.
-- 🧩 **Better compatibility with complex cases**: the current version handles deep-thinking split replies, image-generation conversations, and multi-part assistant responses more reliably.
-- 📚 **Expanded feature scope**: preferences, auto-cleanup, prompt library, group-level navigation, export, folder management, and localization are now more systematically integrated.
-- 🎨 **Rebuilt UI and product language**: instead of keeping the original utility-panel feel, the interface, naming, hierarchy, and visual system have been redesigned into a more productized experience.
-- 🖱️ **Improved interaction model**: the floating icon and panel now support more flexible dragging and position persistence, making the extension feel more like a long-term workspace than a temporary utility.
-
-For this reason, the project is better understood as an **independently maintained derivative improvement**, rather than a simple reskin of the original repository.
-
-### Who is this for? 👀🎯
-
-This project is especially useful for:
-
-- 💼 heavy ChatGPT users
-- 🧵 people who often work with long threads and long conversations
-- 📍 users who need fast context navigation
-- 🔍 users who rely on search, navigation, export, and prompt reuse
-- 🛠️ people who want to use ChatGPT as a knowledge desk / workbench / long-thread collaboration tool
+- [✨ What is this](#overview)
+- [🤔 Why I made this](#why)
+- [🔥 What this project currently focuses on](#highlights)
+- [🧩 Core features in detail](#features)
+  - [1. Prompt Library / Prompt Companion](#feature-prompt)
+  - [2. Conversation Cleanup](#feature-cleanup)
+  - [3. Timeline Navigation](#feature-timeline)
+  - [4. Search Current Conversation](#feature-search)
+  - [5. Export Conversation](#feature-export)
+  - [6. Settings and Workbench Experience](#feature-settings)
+- [🖼 Preview](#preview)
+- [🚀 Installation](#install)
+- [📝 Usage](#usage)
+- [⚙️ Current Default Settings](#defaults)
+- [📌 Known Notes](#known-issues)
+- [🙌 Acknowledgements and Notes](#acknowledgements)
+- [💖 Support This Project](#support)
 
 ---
 
-## 🖼️ Screenshot 🎨
+<a id="overview"></a>
+## ✨ What is this ૮ ˶ᵔ ᵕ ᵔ˶ ა
 
-Below is a preview of the current interface, showing the toolbar, conversation navigation, search, and the overall workbench-style interaction:
+**Conversation Workbench for ChatGPT** is a browser extension designed for long-conversation workflows. 💬🧰
 
-![Screenshot Preview](./image/icon_128.png)
+What it mainly addresses is not just “one button being inconvenient,” but a set of more realistic problems like these:
 
-![Screenshot Preview](./image/preview.png)
+- As conversations get longer, the page becomes slower and harder to scroll or review 🐢
+- Historical content gets messier over time, key points become harder to locate, and revisiting context becomes painful 🌀
+- Frequently used prompts are scattered everywhere, so you keep copying and pasting them manually 📋
+- When you want to review, archive, or export conversations, the output is often not clean or stable enough 📦
+- ChatGPT is increasingly being used like a workbench, but the native interface is not always ideal for heavy use 🖥️
 
-![Screenshot Preview](./image/preview_1.png)
+This project was built step by step around those problems.  
+The goal is straightforward: **make ChatGPT feel more like a smooth, stable, reusable, and well-organized workbench.** ✨🛠️
 
 ---
 
-## 🚀 Installation & Quick Start 🛠️
+<a id="why"></a>
+## 🤔 Why I made this ( •̀ ω •́ )✧
+
+At the beginning, this project was indeed inspired by the open-source project  
+[bujue3709/chatgpt-Long-conversation-optimization](https://github.com/bujue3709/chatgpt-Long-conversation-optimization). 🙏
+
+But at this point, it is no longer just “a few minor tweaks on top of the original idea.”  
+Over time, I have continued to refactor and expand it around:
+
+- **Prompt workbench** 📝
+- **Export capabilities** 📤
+- **Timeline navigation** 🕒
+- **Settings experience** ⚙️
+- **Overall UI productization** 🎨
+
+So a more accurate description now would be:
+
+> This is a derivative improvement project that started from the idea of “long conversation optimization” and gradually evolved into an independent workflow tool. ✨
+
+I would much rather have it understood as a **Workbench for heavy ChatGPT users**, rather than just a script for “improving laggy scrolling.” 🧠💼
+
+---
+
+<a id="highlights"></a>
+## 🔥 What this project currently focuses on ✨(ง •_•)ง
+
+At the moment, the three parts I most want to highlight are also the most distinctive parts of the project:
+
+### 1. The prompt library is not just for storing prompts — it is built as a real Companion 📚💡
+This is not a simple “local notepad-style prompt list,” but a more complete prompt workbench:
+
+- Supports search, categorization, empty-state distinctions, and result highlighting 🔍✨
+- Supports both single-click insert and single-click copy behaviors 🖱️
+- Supports automatic prepend before sending, with deduplication and order control 🔁
+- Includes 4 built-in general templates for new users or empty libraries, so it works out of the box 🌱
+- More stable insertion of long text into the chat input, with fewer formatting issues and less lag 🧩
+
+Its goal is not just to “store prompts,” but to make prompts truly part of your daily workflow. 📌
+
+### 2. Conversation cleanup does not delete content — it makes long chats usable again 🧹💬
+This feature is one of the core foundations of the whole workbench experience.
+
+What it does is not aggressive content cutting, but organizing the view around more stable **QA group** semantics:
+
+- Hide earlier content 🙈
+- Keep recent conversation visible 🧷
+- Reduce page lag ⚡
+- Improve scrolling smoothness 🌊
+- Help you focus on the current context first 🎯
+
+You can always expand everything again, so this is more like a “temporary cleaned-up view,” not destructive editing of the original conversation. 🪄
+
+### 3. Timeline navigation is not just mechanical checkpoints — it follows reading intuition better 🕒🧭
+Many navigation features simply place rigid anchors on every message.  
+But in real usage, users care more about a **grouped Q&A exchange** than an isolated message.
+
+So the navigation here is designed more around **QA groups**:
+
+- More intuitive click-to-jump behavior 🎯
+- Current node highlighting that follows your position ✨
+- Larger hit areas for nodes, making them easier to click 🔘
+- More flexible timeline length behavior 📏
+- Supports linked configuration between maximum node count and sampled node count ⚙️
+
+It feels more like a real “conversation timeline” rather than a row of cold anchors. 🧵
+
+---
+
+<a id="features"></a>
+## 🧩 Core features in detail 🪄📘
+
+<a id="feature-prompt"></a>
+### 1. Prompt Library / Prompt Companion 📚🌟
+
+This is one of the modules I have spent the most time refining recently. 🛠️
+
+The current prompt library is no longer a small auxiliary feature, but a more complete **Companion panel**.  
+It fits high-frequency use cases such as:
+
+- Writing templates ✍️
+- Code review templates 💻
+- Reporting / summarization templates 📊
+- Research analysis templates 🔬
+- Fixed-format reply templates 📨
+- Persistent prefix prompts in multi-turn conversations 📌
+
+Current capabilities include:
+
+- ➕ Add / edit / delete prompts
+- 🔍 Search
+- 🗂️ Categories
+- ✨ Match highlighting
+- 📋 Single-click copy
+- ✍️ Single-click insert into chat input
+- 🔁 Automatic prepend before sending
+- 🧹 Automatic deduplication
+- ↕️ Order control
+- 📥 JSON import
+- 📤 JSON export
+- 🌱 Default templates for new users
+
+The core value of this module can be summarized in one sentence:
+
+> **Turn frequently used prompts from scattered material into real workflow assets you can call at any time.** ✨
+
+---
+
+<a id="feature-cleanup"></a>
+### 2. Conversation Cleanup 🧹💬
+
+If you often work in long threads, this feature makes a very noticeable difference. 👀
+
+Its idea is not to “clear history,” but to:
+
+- Keep recent conversations first 🧷
+- Collapse earlier content 📚
+- Restore the current thread to a readable, scrollable, and navigable state 🧭
+
+Key traits:
+
+- Organizes around more stable **QA group** semantics instead of hard-cutting by scattered message counts 🧩
+- Better suited for long conversations, deep discussions, and multi-round follow-up exchanges 💬
+- After cleanup, you can still **expand all** at any time 🔓
+- Tries to preserve your current reading position and avoid sudden page jumps 🎯
+- Can work together with automatic cleanup strategies ⚙️
+
+You can think of it as:
+
+> **A temporary narrowing of a long conversation, bringing your attention back to the current context.** 🪄
+
+---
+
+<a id="feature-timeline"></a>
+### 3. Timeline Navigation 🕒✨
+
+This is another feature that strongly reinforces the “workbench” feel. 🧰
+
+As conversations get longer, “scrolling around to find something” becomes one of the least efficient ways to navigate.  
+The meaning of timeline navigation is to help you quickly answer two questions:
+
+- Where am I in this conversation right now? 📍
+- If I want to jump back to a previous Q&A group, what is the fastest way? ↩️
+
+In the current version, timeline navigation supports:
+
+- 👀 Node preview
+- 🎯 Click to jump
+- ✨ Current node highlighting
+- 🧲 Draggable positioning
+- 📏 More flexible length behavior
+- 🔘 Enlarged click areas for nodes
+- 🧩 Navigation nodes generated based on QA groups
+- ⚙️ Linked configuration for maximum node count / sampled node count
+
+This is not decorative UI — it genuinely changes how long threads are read and revisited. 🚀
+
+---
+
+<a id="feature-search"></a>
+### 4. Search Current Conversation 🔍💬
+
+Search works especially well together with conversation cleanup and timeline navigation, forming a more complete experience. 🧩
+
+Supported features:
+
+- Keyword search 🔎
+- Result highlighting ✨
+- Previous / next navigation between matches ⬆️⬇️
+- Coordination with cleanup logic 🧹
+- More stable compatibility with rich media, image generation, and multi-part response scenarios 🖼️
+
+In complex conversations, the hardest part of search is not “finding the text,” but “jumping to the right place.”  
+This part is also being continuously improved around more stable semantic handling. 🧠
+
+---
+
+<a id="feature-export"></a>
+### 5. Export Conversation 📦✨
+
+Export functionality has also been continuously enhanced recently. 🛠️
+
+The export entry has now been upgraded to:
+
+- **Export**
+  - **Export JSON**
+  - **Export Markdown**
+
+The current export pipeline especially focuses on improving these scenarios:
+
+- Multi-part assistant responses 💬
+- Rich text content 📝
+- Code blocks 💻
+- Image-generation content 🖼️
+- Removal of duplicate text and UI noise 🧹
+- Compatibility after cleanup-mode export 🔗
+
+Export use cases include:
+
+- 🗃️ Local archiving
+- 🔁 Conversation review
+- 🧾 Content organization
+- 📊 Secondary analysis
+- 📝 Markdown-based record keeping
+
+The goal of this module is now very clear:  
+**Export as much as possible, and export it as cleanly as possible.** ✨
+
+---
+
+<a id="feature-settings"></a>
+### 6. Settings and Workbench Experience ⚙️🪄
+
+Beyond features themselves, this project has also continued improving configurability and overall product experience.
+
+Current key settings include:
+
+- Automatic cleanup toggle 🔁
+- Automatic cleanup threshold 🎚️
+- Number of recent QA groups to keep 🔢
+- Maximum timeline node count 🧭
+- Sampled timeline node count 📏
+- Language settings 🌐
+- Reset layout and settings ♻️
+
+In addition, these interactions have also been continuously refined recently:
+
+- Overall toolbar productization redesign 🧰
+- Unified layout between the main panel and the prompt panel 🪟
+- Clearer hierarchy in the export menu 📂
+- Better grouping, spacing, and footer button layout in the settings modal 🧱
+- Folder UI aligned with the overall visual style 🗂️
+- Smoother interaction between the floating icon and the panel 🖱️
+
+My goal is that this project will ultimately not just be “a pile of usable features,” but something like this:
+
+> **You open it and it immediately feels natural — and it still feels natural after long-term use.** 🌈
+
+---
+
+<a id="preview"></a>
+## 🖼 Preview ✨👀
+
+Below are some previews of the current version, including the main workbench, Prompt Companion, export menu, settings panel, and side utility area.
+
+### Main Workbench
+![Main Workbench Preview](./image/preview.png)
+
+### Prompt Library Panel and Timeline Navigation Panel
+![Prompt Library Panel and Timeline Navigation Panel Preview](./image/preview_2.png)
+
+### Prompt Library Settings
+![Prompt Library Settings Preview](./image/preview_4.png)
+
+### Export and Tool Area
+![Export and Tool Area Preview](./image/preview_1.png)
+
+### Settings Panel
+![Settings Panel Preview](./image/preview_3.png)
+
+> Preview images are for feature demonstration only. Please refer to the current version for actual interface details.
+
+> Preview images will continue to be updated along with new versions. The current interface has already undergone major adjustments around the toolbar, Prompt Companion, export menu, settings panel, and timeline navigation. 🎨
+
+---
+
+<a id="install"></a>
+## 🚀 Installation 🛠️
 
 ### Supported Sites 🌐
 
@@ -79,395 +326,134 @@ Below is a preview of the current interface, showing the toolbar, conversation n
 
 - 🌈 Chrome
 - 🌐 Edge
-- 🦊 Firefox (temporary loading)
+- 🦊 Firefox (temporary loading method)
 
 ### Install on Chrome 🌈
 
 1. Open `chrome://extensions/`
-2. Turn on **Developer mode**
+2. Enable **Developer mode** in the top-right corner
 3. Click **Load unpacked**
-4. Select the project root folder
+4. Select the root directory of this project
 
 ### Install on Edge 🌐
 
 1. Open `edge://extensions/`
-2. Turn on **Developer mode**
+2. Enable **Developer mode** in the top-right corner
 3. Click **Load unpacked**
-4. Select the project root folder
+4. Select the root directory of this project
 
 ### Install on Firefox 🦊
 
 1. Open `about:debugging#/runtime/this-firefox`
 2. Click **Load Temporary Add-on**
-3. Select the `manifest.json` file in the project root
+3. Select `manifest.json` from the root directory of this project
 
 ---
 
-## ▶️ How to Use 📝
+<a id="usage"></a>
+## 📝 Usage (๑•̀ㅂ•́)و✧
 
-### 1. Open the toolbar 🧰
+### 1. Open the Workbench
+After entering the ChatGPT page, the extension injects the corresponding workbench entry into the page.  
+You can open the main panel to clean up, navigate, search, export, and use prompts in the current conversation. 🧰
 
-After the page loads, the **ChatGPT Toolkit** panel appears on the side of the page.  
-When minimized, it becomes a draggable floating icon that can snap to screen edges. Clicking the icon brings the panel back while keeping the icon itself visible as a stable entry point.
+### 2. Use the Prompt Library
+After opening the **Prompt Library / Companion panel**, you can:
 
-### 2. Clean up long conversations 🧹
+- Search prompts 🔍
+- Filter by category 🗂️
+- Insert into the chat input with one click ✍️
+- Copy with one click 📋
+- Configure automatic prepend before sending 🔁
+- Manage local prompt templates 📚
 
-Click **Clean Up Conversation** to hide older parts of the current chat and keep only the most recent groups visible. This reduces lag and makes long conversations easier to browse.
+If your local library is still empty, the extension provides basic templates so you can get started immediately. 🌱
 
-The cleanup logic is based on **QA groups**, not just loose message counts.
+### 3. Clean Up the Current Conversation
+After clicking **Conversation Cleanup**, the extension hides earlier content and only keeps the most recent Q&A groups visible, improving the browsing experience for long conversations.  
+If you need the full thread again, you can always click **Expand All**. 🔓
 
-### 3. Expand everything ♻️
+### 4. Use Timeline Navigation
+After opening **Timeline Navigation**, you can quickly jump to a specific conversation group through timeline nodes.  
+Compared with simply scrolling through the page, this works much better for locating and reviewing long threads. 🧭
 
-Click **Expand All** to restore the previously hidden content so you can review the entire conversation again. The extension tries to preserve your reading position as much as possible.
+### 5. Search the Current Conversation
+After entering keywords, you can search within the current conversation and switch between matches using previous / next controls.  
+Even in complex conversations, it tries to keep navigation as stable as possible. 🎯
 
-### 4. Use conversation navigation 🕒
+### 6. Export the Current Conversation
+After clicking **Export**, you can choose:
 
-Open **Conversation Navigation** to jump quickly to a specific part of the chat through the timeline panel.
+- **Export JSON**
+- **Export Markdown**
 
-The timeline supports:
+This can be used for archiving, reviewing, organizing, analyzing, or secondary processing. 📦
 
-- 👀 preview snippets
-- 🎯 click-to-jump
-- ✨ active-node highlight
-- 🖱️ mouse wheel scrolling
-- 🧲 dragging and repositioning
-- 🧩 QA-group-based navigation instead of message-only dots
-
-### 5. Search the current conversation 🔍
-
-Use the search box to search within the current chat.
-
-Features include:
-
-- 🔎 keyword matching
-- ✨ text highlighting
-- ↕️ previous / next navigation
-- 🧩 more stable positioning in multimodal, image-generation, and split-reply scenarios
-- 📌 message-level matching with group-level positioning when appropriate
-
-### 6. Export a conversation 📦
-
-Click **Export Conversation** to export the current chat as JSON.
-
-Even if cleanup has already been applied, export still tries to preserve the complete conversation content as much as possible.
-
-### 7. Use the prompt library 📚
-
-Click **Prompt Library** to manage your local prompt collection.
-
-Supported actions:
-
-- ➕ create
-- 🗑️ delete
-- 🔍 search
-- 🗂️ categorize
-- ↕️ sort
-- 📥 import JSON
-- 📤 export JSON
-- 📋 one-click copy
-
-### 8. Use preferences ⚙️
-
-Click **Preferences** to configure key behaviors of the extension, such as:
-
-- 🤖 auto-cleanup toggle
-- 📏 auto-cleanup threshold
-- 🧾 number of recent QA groups to keep
-- 🕒 maximum timeline node count
-- 🌐 language switching, including browser-follow mode
-
-### 9. Use folder management 📁
-
-The folder feature adds local organization on top of the existing sidebar.
-
-It supports:
-
-- ➕ create folder
-- ✏️ rename
-- 🗑️ delete
-- 📂 collapse / expand
-- 🧲 drag-and-drop grouping
-- ↕️ sorting
-- 💾 restoring local structure after refresh
+### 7. Open Preferences
+In the settings panel, you can configure automatic cleanup, timeline parameters, language, and layout recovery options.  
+If the UI position or preferences become messy, you can also directly use **Reset Layout and Settings** to restore the default state. ♻️
 
 ---
 
-## 🧰 Features ✨
+<a id="defaults"></a>
+## ⚙️ Current Default Settings 📌
 
-### 1. Conversation cleanup (reduce lag in long chats) 🧹
+The current version uses the following default values:
 
-This is one of the core features of the project.
+- **Recent QA groups to keep: 10**
+- **Maximum timeline nodes: 18**
+- **Sampled timeline nodes: 10**
 
-Its goal is not to delete history, but to hide older content and keep recent content visible so long conversations remain smooth to browse.
-
-Useful when:
-
-- 🐢 the chat has become noticeably laggy
-- 🎯 you only need recent context for now
-- ⚡ you want a smoother reading experience before deciding whether to expand everything
-
-### 2. Conversation navigation (timeline / group navigation) 🕒
-
-Navigation is not built as a loose message-dot overlay. It is organized around more stable conversation semantics.
-
-In the current version, it is closer to **QA-group-based navigation**, so “one question + its corresponding answer” feels like a single unit.
-
-Features:
-
-- ⚡ fast jumping
-- 👀 preview content
-- ✨ active-node tracking
-- 🧲 draggable positioning
-- 🧵 better usability for long threads
-
-### 3. Search within the current conversation 🔍
-
-Search supports:
-
-- 🔎 keyword matching
-- ✨ text highlight
-- ↔️ previous / next navigation
-- 🧩 integration with cleanup and navigation
-
-Complex scenarios such as deep-thinking split replies and image-generation chats are handled more robustly to reduce mismatched jumps.
-
-### 4. Export conversation 📦
-
-Export the current conversation as JSON for:
-
-- 🗃️ local archiving
-- 📊 later analysis
-- 🧾 data organization
-- 🔁 review and downstream processing
-
-### 5. Prompt library 📚
-
-The prompt library lets you manage reusable prompt templates locally, with import/export support.
-
-Useful for:
-
-- ✍️ writing templates
-- 💻 code review templates
-- 📄 reporting / summary templates
-- 🔬 research and analysis templates
-
-### 6. Preferences ⚙️
-
-Preferences turn the extension from a fixed utility into a configurable product.
-
-You can adjust:
-
-- ✅ whether auto-cleanup is enabled
-- ⏱️ when auto-cleanup should trigger
-- 🧩 how many recent QA groups should remain visible
-- 🕘 how many timeline nodes to display
-- 🌍 which language mode to use
-
-### 7. Auto-cleanup 🤖
-
-Auto-cleanup can trigger automatically under the right conditions, reducing repetitive manual clicks.
-
-Current behavior is designed around:
-
-- 🙋 explicit user enablement
-- 🎯 threshold-based triggering
-- 🔁 avoiding repeated auto-triggering in the same conversation
-- 🛑 avoiding premature triggering during streaming responses
-- ♻️ not immediately re-collapsing after manual restore in the same conversation
-
-### 8. Conversation folders 📁
-
-The folder feature adds an extra local management layer to the existing sidebar.
-
-It supports:
-
-- ➕ create
-- ✏️ rename
-- 🗑️ delete
-- 📂 collapse / expand
-- 🧲 drag-and-drop grouping
-- ↕️ sort
-- 💾 restore local structure after refresh
-
-It does not replace ChatGPT’s original conversation list; it adds a local classification layer on top of it.
-
-### 9. Localization and theme sync 🌐🎨
-
-Currently supported:
-
-- 🇨🇳 Simplified Chinese
-- 🇺🇸 English
-- 🌐 Auto (follow browser)
-
-The toolbar, timeline, prompt library, preferences, and related panels also follow the page’s light/dark theme.
-
-### 10. Floating icon and draggable workbench 🪄
-
-The current version provides a more complete floating workbench experience instead of a single minimize button:
-
-- 🖱️ the panel is draggable
-- 📍 the floating icon is draggable and can snap to the top, bottom, left, or right edge of the page
-- 💾 icon and panel positions are persisted
-- 📌 the icon and panel can stay visible at the same time
+The purpose of these defaults is to strike a more balanced trade-off between  
+“keeping enough context” and “avoiding an overly dense timeline or a heavier page load.” ⚖️
 
 ---
 
-## ⚙️ Preferences 🛠️
+<a id="known-issues"></a>
+## 📌 Known Notes 🛠️
 
-### Auto cleanup 🤖
+To stay transparent with users, here are the parts that are still being actively improved:
 
-Enable or disable automatic cleanup.
+- In complex conversations such as **Deep Research**, the main body may still be incomplete in some export cases 🔬
+- Current priority has been to ensure **downloadability** and **basic export usability** first 📥
+- The JSON / Markdown export pipeline is still being continuously enhanced, especially for compatibility with complex rich-media structures 🧩
 
-### Auto cleanup threshold 📏
+In other words:
 
-Automatically trigger cleanup when the current conversation reaches a certain size.
-
-### Keep recent QA groups 🧾
-
-After cleanup, keep the most recent QA groups visible.
-
-### Timeline max nodes 🕘
-
-Limit how many navigation nodes are shown in the timeline to avoid overcrowding.
-
-### Language 🌍
-
-Supported modes:
-
-- 🌐 Auto (follow browser)
-- 🇺🇸 English
-- 🇨🇳 Simplified Chinese
+> This part is already usable and improving, but it has not yet reached the point where every complex scenario is perfectly covered. ✨
 
 ---
 
-## 🏗️ Architecture Overview 🧠
+<a id="acknowledgements"></a>
+## 🙌 Acknowledgements and Notes 💖
 
-> This section is mainly for developers 👨‍💻
+This project was originally inspired by  
+[bujue3709/chatgpt-Long-conversation-optimization](https://github.com/bujue3709/chatgpt-Long-conversation-optimization).
 
-One of the key design choices in this project is the separation of conversation semantics into three layers:
+Thanks to the original author for the open-source work and inspiration. ❤️✨
 
-### 1. `message` 💬
+At the same time, a few notes:
 
-The lowest-level unit, used for text extraction, matching, export, and other low-level capabilities.
-
-### 2. `turn` 🔄
-
-A middle semantic layer, closer to page structure and one round of message organization.
-
-### 3. `QA group` 🧩
-
-A higher-level semantic unit that is closer to how users actually think about a conversation. Cleanup, navigation, search positioning, and auto-cleanup are more heavily organized around this layer.
-
-Why this matters:
-
-- 🔗 reduces direct coupling to raw DOM structure
-- 🧭 makes cleanup and navigation more stable
-- 🧩 makes image-generation chats, deep-thinking split replies, and multipart assistant outputs easier to support
+- This project is **not** the official continuation of the original repository 📌
+- It does **not** represent the original author's position 🧾
+- The current version has already undergone major refactoring and expansion around the **prompt workbench, export capabilities, timeline navigation, settings experience, and overall UI** 🛠️
+- It is better understood as an independently maintained derivative improvement project 🌱
 
 ---
 
-## 🧑‍💻 Developer Notes 🛠️
+<a id="support"></a>
+## 💖 Support This Project
 
-### Project characteristics ✨
+If this project helps you, welcome to give it a Star ⭐
 
-- 📦 no bundler dependency
-- 🧩 injected into the ChatGPT page as content scripts
-- 💾 primarily based on local state and local storage
-- 👨‍💻 suitable for direct source reading and module-level maintenance
+If you would like to support future development and maintenance, you can also use the payment QR codes below:
 
-### Recommended reading order 📚
+### WeChat Pay QR Code
+![WeChat Pay QR Code](./微信收款码.jpg)
 
-If you want to understand the project, a good reading order is:
+### Alipay QR Code
+![Alipay QR Code](./支付宝收款码.jpg)
 
-1. toolbar and main interaction entry
-2. cleanup / restore logic
-3. search and navigation logic
-4. prompt library and folders
-5. localization, state management, and theme sync
-
-### Suggested module directions 🧭
-
-- 🧰 toolbar and floating interactions
-- 🧹 conversation cleanup
-- 🔍 search and positioning
-- 🕒 timeline / conversation navigation
-- 📦 export
-- 📚 prompt library
-- 📁 folder management
-- 🌐 localization and theme sync
-- 💾 state management and persistence
-
-> Actual file names and directory structure should follow the current repository version.
-
----
-
-## ⚠️ Known Limitations 🚧
-
-- 🕒 The timeline only works with content that is already loaded in the page. It does not actively fetch earlier hidden history from ChatGPT.
-- 📁 Folder management depends on the current sidebar DOM structure and stores relationships locally; it does not sync to ChatGPT servers.
-- 🧱 The ChatGPT page structure may continue to change. If the DOM changes significantly, selectors and mounting points may need future updates.
-- 🧪 Multimodal, image-generation, and deep-thinking scenarios have been improved, but it is still recommended to verify exported content before relying on it.
-- 🧭 Drag position persistence depends on the current viewport and layout; extreme layout changes may trigger safe fallback positioning.
-
----
-
-## 🛣️ Roadmap 🚀
-
-The current version already includes:
-
-- 🧹 long-conversation cleanup
-- 🕒 conversation navigation
-- 🔍 search
-- 📦 export
-- 📚 prompt library
-- 📁 folder management
-- 🌐 localization and theme sync
-- ⚙️ preferences
-- 🤖 basic auto-cleanup capability
-- 🎨 productized Chinese UI redesign
-- 🖱️ panel and icon dragging
-- 📍 four-edge snapping and position persistence for the floating icon
-
-Possible future improvements:
-
-- ⭐ bookmarks / favorites
-- 🔎 richer search results view
-- 📤 more export formats
-- ⚙️ finer-grained auto-cleanup rules
-- 🎨 further UI polish
-- 🏪 browser store release preparation
-
----
-
-## ☕ Support 💖
-
-If this project helps you, feel free to support its continued development ✨  
-Your support helps with future features, UI refinements, and compatibility maintenance.
-
-Suggestions, bug reports, and improvement ideas are also welcome through Issues and PRs 💌
-
-<table>
-  <tr>
-    <td align="center">
-      <strong>WeChat Support</strong><br/>
-      <img src="./微信收款码.jpg" alt="WeChat support QR code" width="260" />
-    </td>
-    <td align="center">
-      <strong>Alipay Support</strong><br/>
-      <img src="./支付宝收款码.jpg" alt="Alipay support QR code" width="260" />
-    </td>
-  </tr>
-</table>
-
----
-
-## 📄 License ⚖️
-
-This project is licensed under the [MIT License](./LICENSE).
-
-You may use, modify, publish, distribute, or adapt it for commercial use as long as the license notice is retained.
-
-### Additional note 📝
-
-Please do not misrepresent the original project name, the original author’s identity, or the branding relationship.  
-If you distribute a modified, derivative, or unofficial version, please state that clearly.
+Thank you for your support. 🙏  
+If this project helps you, a Star is always appreciated ⭐💫  
+You are also welcome to continue adapting it to fit your own workflow. ヽ(✿ﾟ▽ﾟ)ノ
