@@ -1,4 +1,4 @@
-﻿/*
+/*
  * ChatGPT Conversation Toolkit - Prompt library
  */
 // ============ Prompt Library ============
@@ -38,11 +38,28 @@ const normalizePromptItem = (raw) => {
   const updatedAt = Number.isFinite(Number(raw.updatedAt)) ? Number(raw.updatedAt) : createdAt;
   const id = toSafeText(raw.id) || createPromptId();
 
+  const tags = Array.isArray(raw.tags)
+    ? raw.tags.map((t) => toSafeText(t)).filter(Boolean)
+    : [];
+  const isFavorite = Boolean(raw.isFavorite);
+  const pinned = Boolean(raw.pinned);
+  const pinnedOrder = Number.isFinite(Number(raw.pinnedOrder)) ? Number(raw.pinnedOrder) : 0;
+  const usageCount = Number.isFinite(Number(raw.usageCount)) ? Number(raw.usageCount) : 0;
+  const lastUsedAt = Number.isFinite(Number(raw.lastUsedAt)) ? Number(raw.lastUsedAt) : null;
+  const description = toSafeText(raw.description);
+
   return {
     id,
     title,
     category,
     content,
+    tags,
+    isFavorite,
+    pinned,
+    pinnedOrder,
+    usageCount,
+    lastUsedAt,
+    description,
     createdAt,
     updatedAt,
   };
@@ -274,13 +291,100 @@ const persistPromptBehaviorSettings = () => {
   }
 };
 
+const normalizeTextForFuzzyMatch = (text) => {
+  if (typeof text !== "string") {
+    return "";
+  }
+  return text
+    .toLowerCase()
+    .replace(/[\s\-_.,;:!?'"()\[\]{}]+/g, "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+};
+
+const getFuzzyMatchScore = (text, query) => {
+  if (!query || !text) {
+    return 0;
+  }
+  const normalizedText = normalizeTextForFuzzyMatch(text);
+  const normalizedQuery = normalizeTextForFuzzyMatch(query);
+
+  if (!normalizedQuery) {
+    return 0;
+  }
+
+  if (normalizedText.includes(normalizedQuery)) {
+    const exactMatchScore = 100;
+    const positionBonus = normalizedText.indexOf(normalizedQuery) === 0 ? 20 : 0;
+    const lengthBonus = Math.max(0, 50 - normalizedText.length);
+    return exactMatchScore + positionBonus + lengthBonus;
+  }
+
+  let score = 0;
+  let queryIndex = 0;
+  let textIndex = 0;
+  let consecutiveMatches = 0;
+  let maxConsecutive = 0;
+
+  while (queryIndex < normalizedQuery.length && textIndex < normalizedText.length) {
+    if (normalizedQuery[queryIndex] === normalizedText[textIndex]) {
+      consecutiveMatches++;
+      maxConsecutive = Math.max(maxConsecutive, consecutiveMatches);
+      score += 10 + consecutiveMatches * 2;
+      queryIndex++;
+    } else {
+      consecutiveMatches = 0;
+    }
+    textIndex++;
+  }
+
+  if (queryIndex < normalizedQuery.length) {
+    return 0;
+  }
+
+  return score + maxConsecutive * 3;
+};
+
+const getPromptSearchableText = (item) => {
+  if (!item) {
+    return "";
+  }
+  const tagsText = Array.isArray(item.tags) ? item.tags.join(" ") : "";
+  const descriptionText = item.description || "";
+  return `${item.title || ""} ${item.category || ""} ${tagsText} ${descriptionText} ${item.content || ""}`;
+};
+
+const extractSearchHighlightRanges = (text, query) => {
+  if (!query || !text) {
+    return [];
+  }
+
+  const ranges = [];
+  const queryLower = query.toLowerCase();
+  const textLower = text.toLowerCase();
+  const queryLength = query.length;
+
+  let index = textLower.indexOf(queryLower);
+  while (index !== -1) {
+    ranges.push({ start: index, end: index + queryLength });
+    index = textLower.indexOf(queryLower, index + 1);
+  }
+
+  return ranges;
+};
+
 const applyPromptFilters = () => {
-  const keyword = promptState.searchText.trim().toLowerCase();
+  const keyword = promptState.searchText.trim();
+  const useFuzzy = promptState.fuzzySearch !== false;
   let result = [...promptState.items];
 
-  if (keyword) {
+  if (promptState.showFavoritesOnly) {
+    result = result.filter((item) => item.isFavorite === true);
+  }
+
+  if (promptState.currentTag) {
     result = result.filter((item) =>
-      `${item.title} ${item.category} ${item.content}`.toLowerCase().includes(keyword)
+      Array.isArray(item.tags) && item.tags.includes(promptState.currentTag)
     );
   }
 
@@ -288,7 +392,44 @@ const applyPromptFilters = () => {
     result = result.filter((item) => item.category === promptState.category);
   }
 
-  result.sort((a, b) => b.updatedAt - a.updatedAt);
+  if (keyword) {
+    if (useFuzzy) {
+      const scored = result
+        .map((item) => ({
+          item,
+          score: getFuzzyMatchScore(getPromptSearchableText(item), keyword),
+        }))
+        .filter((s) => s.score > 0);
+      scored.sort((a, b) => b.score - a.score);
+      result = scored.map((s) => s.item);
+    } else {
+      const keywordLower = keyword.toLowerCase();
+      result = result.filter((item) =>
+        getPromptSearchableText(item).toLowerCase().includes(keywordLower)
+      );
+    }
+  }
+
+  result.sort((a, b) => {
+    if (a.pinned && !b.pinned) {
+      return -1;
+    }
+    if (!a.pinned && b.pinned) {
+      return 1;
+    }
+    if (a.pinned && b.pinned) {
+      if (a.pinnedOrder !== b.pinnedOrder) {
+        return a.pinnedOrder - b.pinnedOrder;
+      }
+    }
+    if (a.isFavorite && !b.isFavorite) {
+      return -1;
+    }
+    if (!a.isFavorite && b.isFavorite) {
+      return 1;
+    }
+    return b.updatedAt - a.updatedAt;
+  });
 
   promptState.filteredItems = result;
   if (!result.some((item) => item.id === promptState.selectedId)) {
@@ -887,6 +1028,406 @@ const renderPromptCategoryOptions = (categorySelect) => {
   categorySelect.value = promptState.category;
 };
 
+const getAllPromptTags = () => {
+  const tagSet = new Set();
+  promptState.items.forEach((item) => {
+    if (Array.isArray(item.tags)) {
+      item.tags.forEach((tag) => tagSet.add(tag));
+    }
+  });
+  promptState.allTags = Array.from(tagSet).sort();
+  return promptState.allTags;
+};
+
+const addTagToPrompt = async (promptId, tag) => {
+  const item = promptState.items.find((p) => p.id === promptId);
+  if (!item) {
+    return false;
+  }
+  const safeTag = toSafeText(tag);
+  if (!safeTag) {
+    return false;
+  }
+  if (!Array.isArray(item.tags)) {
+    item.tags = [];
+  }
+  if (item.tags.includes(safeTag)) {
+    return false;
+  }
+  item.tags.push(safeTag);
+  item.updatedAt = Date.now();
+  getAllPromptTags();
+  await savePromptItems(promptState.items);
+  return true;
+};
+
+const removeTagFromPrompt = async (promptId, tag) => {
+  const item = promptState.items.find((p) => p.id === promptId);
+  if (!item || !Array.isArray(item.tags)) {
+    return false;
+  }
+  const safeTag = toSafeText(tag);
+  if (!safeTag || !item.tags.includes(safeTag)) {
+    return false;
+  }
+  item.tags = item.tags.filter((t) => t !== safeTag);
+  item.updatedAt = Date.now();
+  getAllPromptTags();
+  await savePromptItems(promptState.items);
+  return true;
+};
+
+const togglePromptFavorite = async (promptId) => {
+  const item = promptState.items.find((p) => p.id === promptId);
+  if (!item) {
+    return false;
+  }
+  item.isFavorite = !item.isFavorite;
+  item.updatedAt = Date.now();
+  await savePromptItems(promptState.items);
+  return true;
+};
+
+const togglePromptPinned = async (promptId) => {
+  const item = promptState.items.find((p) => p.id === promptId);
+  if (!item) {
+    return false;
+  }
+  item.pinned = !item.pinned;
+  if (item.pinned) {
+    const maxOrder = Math.max(0, ...promptState.items.map((p) => p.pinned ? p.pinnedOrder : -1));
+    item.pinnedOrder = maxOrder + 1;
+  }
+  item.updatedAt = Date.now();
+  await savePromptItems(promptState.items);
+  return true;
+};
+
+const updatePromptPinnedOrder = async (promptId, newOrder) => {
+  const item = promptState.items.find((p) => p.id === promptId);
+  if (!item || !item.pinned) {
+    return false;
+  }
+  item.pinnedOrder = newOrder;
+  item.updatedAt = Date.now();
+  await savePromptItems(promptState.items);
+  return true;
+};
+
+const toggleBatchMode = () => {
+  promptState.batchMode = !promptState.batchMode;
+  if (!promptState.batchMode) {
+    promptState.selectedIds.clear();
+  }
+};
+
+const togglePromptSelection = (promptId) => {
+  if (!promptState.batchMode) {
+    return;
+  }
+  if (promptState.selectedIds.has(promptId)) {
+    promptState.selectedIds.delete(promptId);
+  } else {
+    promptState.selectedIds.add(promptId);
+  }
+};
+
+const selectAllFilteredPrompts = () => {
+  if (!promptState.batchMode) {
+    return;
+  }
+  const allSelected =
+    promptState.filteredItems.length > 0 &&
+    promptState.filteredItems.every((item) => promptState.selectedIds.has(item.id));
+
+  if (allSelected) {
+    promptState.filteredItems.forEach((item) => promptState.selectedIds.delete(item.id));
+  } else {
+    promptState.filteredItems.forEach((item) => promptState.selectedIds.add(item.id));
+  }
+};
+
+const deleteSelectedPrompts = async () => {
+  if (promptState.selectedIds.size === 0) {
+    return 0;
+  }
+  const count = promptState.selectedIds.size;
+  promptState.items = promptState.items.filter((item) => !promptState.selectedIds.has(item.id));
+  promptState.selectedIds.clear();
+  promptState.batchMode = false;
+  getAllPromptTags();
+  await savePromptItems(promptState.items);
+  return count;
+};
+
+const batchUpdateCategory = async (newCategory) => {
+  if (promptState.selectedIds.size === 0) {
+    return 0;
+  }
+  const safeCategory = normalizeCategory(newCategory);
+  promptState.items = promptState.items.map((item) => {
+    if (promptState.selectedIds.has(item.id)) {
+      return {
+        ...item,
+        category: safeCategory,
+        updatedAt: Date.now(),
+      };
+    }
+    return item;
+  });
+  const count = promptState.selectedIds.size;
+  promptState.selectedIds.clear();
+  promptState.batchMode = false;
+  await savePromptItems(promptState.items);
+  return count;
+};
+
+const batchAddTag = async (tag) => {
+  if (promptState.selectedIds.size === 0) {
+    return 0;
+  }
+  const safeTag = toSafeText(tag);
+  if (!safeTag) {
+    return 0;
+  }
+  let updatedCount = 0;
+  promptState.items = promptState.items.map((item) => {
+    if (promptState.selectedIds.has(item.id)) {
+      const tags = Array.isArray(item.tags) ? [...item.tags] : [];
+      if (!tags.includes(safeTag)) {
+        tags.push(safeTag);
+        updatedCount++;
+        return {
+          ...item,
+          tags,
+          updatedAt: Date.now(),
+        };
+      }
+    }
+    return item;
+  });
+  if (updatedCount > 0) {
+    getAllPromptTags();
+    await savePromptItems(promptState.items);
+  }
+  return updatedCount;
+};
+
+const buildPromptDraftId = () => `draft-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+const savePromptDraft = async (draftData) => {
+  const draft = {
+    id: buildPromptDraftId(),
+    title: toSafeText(draftData.title) || "未命名草稿",
+    content: toSafeText(draftData.content),
+    category: normalizeCategory(draftData.category),
+    tags: Array.isArray(draftData.tags) ? draftData.tags.map((t) => toSafeText(t)).filter(Boolean) : [],
+    description: toSafeText(draftData.description),
+    createdAt: Date.now(),
+    expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
+  };
+
+  promptState.drafts.push(draft);
+
+  try {
+    sessionStorage.setItem(PROMPT_DRAFT_STORAGE_KEY, JSON.stringify(promptState.drafts));
+  } catch (error) {
+    console.warn("[Prompt Vault] Failed to save draft to sessionStorage:", error);
+  }
+
+  return draft;
+};
+
+const loadPromptDrafts = () => {
+  try {
+    const raw = sessionStorage.getItem(PROMPT_DRAFT_STORAGE_KEY);
+    if (raw) {
+      const drafts = JSON.parse(raw);
+      const now = Date.now();
+      promptState.drafts = drafts.filter((d) => d.expiresAt > now);
+    }
+  } catch (error) {
+    promptState.drafts = [];
+  }
+  return promptState.drafts;
+};
+
+const deletePromptDraft = (draftId) => {
+  promptState.drafts = promptState.drafts.filter((d) => d.id !== draftId);
+  try {
+    sessionStorage.setItem(PROMPT_DRAFT_STORAGE_KEY, JSON.stringify(promptState.drafts));
+  } catch (error) {
+    console.warn("[Prompt Vault] Failed to update drafts:", error);
+  }
+};
+
+const promoteDraftToPrompt = async (draftId) => {
+  const draft = promptState.drafts.find((d) => d.id === draftId);
+  if (!draft) {
+    return null;
+  }
+
+  const newItem = normalizePromptItem({
+    title: draft.title,
+    content: draft.content,
+    category: draft.category,
+    tags: draft.tags,
+    description: draft.description,
+  });
+
+  if (!newItem) {
+    return null;
+  }
+
+  promptState.items.unshift(newItem);
+  deletePromptDraft(draftId);
+  getAllPromptTags();
+  await savePromptItems(promptState.items);
+
+  return newItem;
+};
+
+const normalizeComboItem = (raw) => {
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+  const name = toSafeText(raw.name);
+  if (!name) {
+    return null;
+  }
+  return {
+    id: toSafeText(raw.id) || `combo-${Date.now()}`,
+    name,
+    description: toSafeText(raw.description),
+    promptIds: Array.isArray(raw.promptIds) ? raw.promptIds : [],
+    separator: toSafeText(raw.separator) || "\n\n---\n\n",
+    createdAt: Number.isFinite(Number(raw.createdAt)) ? Number(raw.createdAt) : Date.now(),
+    updatedAt: Number.isFinite(Number(raw.updatedAt)) ? Number(raw.updatedAt) : Date.now(),
+    usageCount: Number.isFinite(Number(raw.usageCount)) ? Number(raw.usageCount) : 0,
+  };
+};
+
+const savePromptCombos = async (combos) => {
+  promptState.combos = combos;
+  try {
+    localStorage.setItem(PROMPT_COMBO_STORAGE_KEY, JSON.stringify(combos));
+  } catch (error) {
+    console.warn("[Prompt Vault] Failed to save combos:", error);
+  }
+};
+
+const loadPromptCombos = () => {
+  try {
+    const raw = localStorage.getItem(PROMPT_COMBO_STORAGE_KEY);
+    if (raw) {
+      promptState.combos = JSON.parse(raw).map(normalizeComboItem).filter(Boolean);
+    }
+  } catch (error) {
+    promptState.combos = [];
+  }
+  return promptState.combos;
+};
+
+const createPromptCombo = async (name, promptIds, options = {}) => {
+  const combo = normalizeComboItem({
+    id: `combo-${Date.now()}`,
+    name,
+    description: options.description || "",
+    promptIds: Array.isArray(promptIds) ? promptIds : [],
+    separator: options.separator || "\n\n---\n\n",
+  });
+
+  if (!combo) {
+    return null;
+  }
+
+  promptState.combos.push(combo);
+  await savePromptCombos(promptState.combos);
+  return combo;
+};
+
+const deletePromptCombo = async (comboId) => {
+  promptState.combos = promptState.combos.filter((c) => c.id !== comboId);
+  await savePromptCombos(promptState.combos);
+};
+
+const buildComboContent = (combo) => {
+  if (!combo || !Array.isArray(combo.promptIds)) {
+    return "";
+  }
+
+  const promptMap = new Map(promptState.items.map((item) => [item.id, item]));
+  const contents = combo.promptIds
+    .map((id) => promptMap.get(id))
+    .filter(Boolean)
+    .map((item) => item.content);
+
+  return contents.join(combo.separator || "\n\n---\n\n");
+};
+
+const applyPromptCombo = async (comboId) => {
+  const combo = promptState.combos.find((c) => c.id === comboId);
+  if (!combo) {
+    return { success: false, reason: "combo-not-found" };
+  }
+
+  const content = buildComboContent(combo);
+  if (!content) {
+    return { success: false, reason: "empty-content" };
+  }
+
+  combo.usageCount = (combo.usageCount || 0) + 1;
+  combo.updatedAt = Date.now();
+  await savePromptCombos(promptState.combos);
+
+  const result = prependPromptToComposer(content);
+  return result;
+};
+
+const incrementPromptUsage = async (promptId) => {
+  const item = promptState.items.find((p) => p.id === promptId);
+  if (!item) {
+    return false;
+  }
+  item.usageCount = (item.usageCount || 0) + 1;
+  item.lastUsedAt = Date.now();
+  await savePromptItems(promptState.items);
+  return true;
+};
+
+const logPromptOperation = (action, details) => {
+  const logEntry = {
+    id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    action,
+    details: details || {},
+    timestamp: Date.now(),
+  };
+
+  promptState.operationLog.unshift(logEntry);
+
+  if (promptState.operationLog.length > 100) {
+    promptState.operationLog = promptState.operationLog.slice(0, 100);
+  }
+
+  try {
+    localStorage.setItem(PROMPT_OPERATION_LOG_KEY, JSON.stringify(promptState.operationLog));
+  } catch (error) {
+    console.warn("[Prompt Vault] Failed to save operation log:", error);
+  }
+};
+
+const loadPromptOperationLog = () => {
+  try {
+    const raw = localStorage.getItem(PROMPT_OPERATION_LOG_KEY);
+    if (raw) {
+      promptState.operationLog = JSON.parse(raw);
+    }
+  } catch (error) {
+    promptState.operationLog = [];
+  }
+  return promptState.operationLog;
+};
+
 const formatPromptTime = (timestamp) => {
   const date = new Date(timestamp);
   if (Number.isNaN(date.getTime())) {
@@ -1099,7 +1640,7 @@ const copyTextToClipboard = async (text) => {
 };
 
 const copyPromptById = async (promptId, options = {}) => {
-  const { silent = false } = options;
+  const { silent = false, skipUsageUpdate = false } = options;
   const item = promptState.items.find((prompt) => prompt.id === promptId);
   if (!item) {
     if (!silent) {
@@ -1114,6 +1655,10 @@ const copyPromptById = async (promptId, options = {}) => {
 
   const copied = await copyTextToClipboard(item.content);
   if (copied) {
+    if (!skipUsageUpdate) {
+      await incrementPromptUsage(promptId);
+    }
+    logPromptOperation("copy", { promptId, title: item.title });
     if (!silent) {
       updateStatusByKey("status.promptCopyDone", "success", { title: item.title });
       showPromptToastByKey("prompt.toastCopyDone", "success");
@@ -1129,6 +1674,13 @@ const copyPromptById = async (promptId, options = {}) => {
 };
 
 const getComposerElement = () => {
+  if (typeof window.getPlatformComposerElement === "function") {
+    const platformElement = window.getPlatformComposerElement();
+    if (platformElement) {
+      return platformElement;
+    }
+  }
+
   const selectors = [
     'div.ProseMirror#prompt-textarea[contenteditable="true"][role="textbox"]',
     '#prompt-textarea[contenteditable="true"]',
@@ -1393,13 +1945,17 @@ const insertPromptById = async (promptId) => {
 
   const insertResult = prependPromptToComposer(item.content);
   if (insertResult.success) {
+    await incrementPromptUsage(promptId);
+    logPromptOperation("insert", { promptId, title: item.title });
     updateStatusByKey("status.promptInsertDone", "success", { title: item.title });
     showPromptToastByKey("prompt.toastInsertDone", "success");
     return;
   }
 
-  const copied = await copyPromptById(promptId, { silent: true });
+  const copied = await copyPromptById(promptId, { silent: true, skipUsageUpdate: true });
   if (copied) {
+    await incrementPromptUsage(promptId);
+    logPromptOperation("insert-fallback-copy", { promptId, title: item.title });
     updateStatusByKey("status.promptInsertFallbackCopied", "info", { title: item.title });
     showPromptToastByKey("prompt.toastCopyDone", "success");
     return;
@@ -2406,4 +2962,34 @@ const openPromptModal = async () => {
   ensurePromptAutoAttachListeners();
   enablePromptCompanionDrag();
 };
+
+if (typeof window !== "undefined") {
+  window.getAllPromptTags = getAllPromptTags;
+  window.addTagToPrompt = addTagToPrompt;
+  window.removeTagFromPrompt = removeTagFromPrompt;
+  window.togglePromptFavorite = togglePromptFavorite;
+  window.togglePromptPinned = togglePromptPinned;
+  window.updatePromptPinnedOrder = updatePromptPinnedOrder;
+  window.toggleBatchMode = toggleBatchMode;
+  window.togglePromptSelection = togglePromptSelection;
+  window.selectAllFilteredPrompts = selectAllFilteredPrompts;
+  window.deleteSelectedPrompts = deleteSelectedPrompts;
+  window.batchUpdateCategory = batchUpdateCategory;
+  window.batchAddTag = batchAddTag;
+  window.savePromptDraft = savePromptDraft;
+  window.loadPromptDrafts = loadPromptDrafts;
+  window.deletePromptDraft = deletePromptDraft;
+  window.promoteDraftToPrompt = promoteDraftToPrompt;
+  window.loadPromptCombos = loadPromptCombos;
+  window.createPromptCombo = createPromptCombo;
+  window.deletePromptCombo = deletePromptCombo;
+  window.applyPromptCombo = applyPromptCombo;
+  window.buildComboContent = buildComboContent;
+  window.loadPromptOperationLog = loadPromptOperationLog;
+  window.logPromptOperation = logPromptOperation;
+  window.incrementPromptUsage = incrementPromptUsage;
+  window.normalizeTextForFuzzyMatch = normalizeTextForFuzzyMatch;
+  window.getFuzzyMatchScore = getFuzzyMatchScore;
+  window.getPromptSearchableText = getPromptSearchableText;
+}
 

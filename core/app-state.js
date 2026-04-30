@@ -89,6 +89,50 @@ const settingsUiState = {
   isOpen: false,
 };
 
+const CONVERSATION_STATS_STORAGE_KEY = "chatgpt-toolkit-conversation-stats-v1";
+const TOPIC_GROUPS_STORAGE_KEY = "chatgpt-toolkit-topic-groups-v1";
+const CONVERSATION_SUMMARY_STORAGE_KEY = "chatgpt-toolkit-conversation-summary-v1";
+
+const conversationStatsState = {
+  totalWords: 0,
+  totalCharacters: 0,
+  totalMessages: 0,
+  userMessages: 0,
+  assistantMessages: 0,
+  userWords: 0,
+  assistantWords: 0,
+  userCharacters: 0,
+  assistantCharacters: 0,
+  conversationStartTime: null,
+  conversationEndTime: null,
+  lastCalculatedAt: null,
+};
+
+const topicGroupsState = {
+  enabled: false,
+  groups: [],
+  groupByKey: new Map(),
+  lastGroupedAt: null,
+  groupingStrategy: "semantic",
+};
+
+const lazyLoadState = {
+  enabled: false,
+  visibleThreshold: 2000,
+  lazyLoadedKeys: new Set(),
+  collapsedForPerformance: new Set(),
+  lastOptimizedAt: null,
+};
+
+const summaryState = {
+  summary: null,
+  keyTopics: [],
+  actionItems: [],
+  decisions: [],
+  lastGeneratedAt: null,
+  generationStrategy: "key-extract",
+};
+
 const autoOptimizeState = {
   conversationKey: "",
   hasAutoOptimized: false,
@@ -105,6 +149,11 @@ const toolbarDragState = {
   pointerDown: false,
   dragging: false,
 };
+
+const PROMPT_DRAFT_STORAGE_KEY = "chatgpt-toolkit-prompt-drafts-v1";
+const PROMPT_COMBO_STORAGE_KEY = "chatgpt-toolkit-prompt-combos-v1";
+const PROMPT_TAGS_STORAGE_KEY = "chatgpt-toolkit-prompt-tags-v1";
+const PROMPT_OPERATION_LOG_KEY = "chatgpt-toolkit-prompt-operation-log-v1";
 
 const promptState = {
   loaded: false,
@@ -123,6 +172,16 @@ const promptState = {
   searchText: "",
   category: "all",
   sortBy: "updated-desc",
+  batchMode: false,
+  selectedIds: new Set(),
+  allTags: [],
+  currentTag: null,
+  showFavoritesOnly: false,
+  drafts: [],
+  combos: [],
+  operationLog: [],
+  highlightMatches: true,
+  fuzzySearch: true,
 };
 const timelineState = {
   items: [],
