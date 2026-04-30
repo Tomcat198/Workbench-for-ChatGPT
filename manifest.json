@@ -1,8 +1,8 @@
-﻿{
+{
   "manifest_version": 3,
-  "name": "Conversation Workbench for ChatGPT",
-  "version": "2.8.7",
-  "description": "A productivity toolkit for organizing, searching, collapsing, navigating, and exporting long ChatGPT conversations.",
+  "name": "Conversation Workbench for AI Chat",
+  "version": "2.9.0",
+  "description": "A productivity toolkit for organizing, searching, collapsing, navigating, and exporting long conversations. Supports ChatGPT, Doubao, DeepSeek, Tongyi Qianwen, Kimi, Wenxin Yiyan, and more.",
   "icons": {
     "16": "image/icon_16.png",
     "32": "image/icon_32.png",
@@ -13,7 +13,27 @@
     {
       "matches": [
         "https://chat.openai.com/*",
-        "https://chatgpt.com/*"
+        "https://chatgpt.com/*",
+        "https://www.doubao.com/*",
+        "https://doubao.com/*",
+        "https://chat.deepseek.com/*",
+        "https://deepseek.com/*",
+        "https://tongyi.aliyun.com/*",
+        "https://qianwen.aliyun.com/*",
+        "https://kimi.moonshot.cn/*",
+        "https://www.moonshot.cn/*",
+        "https://yiyan.baidu.com/*",
+        "https://chatglm.cn/*",
+        "https://www.chatglm.cn/*",
+        "https://xinghuo.xfyun.cn/*",
+        "https://www.xinghuo.xfyun.cn/*",
+        "https://claude.ai/*",
+        "https://poe.com/*",
+        "https://www.poe.com/*",
+        "https://chat.coze.cn/*",
+        "https://www.coze.cn/*",
+        "https://huggingface.co/chat/*",
+        "https://www.huggingface.co/chat/*"
       ],
       "js": [
         "core/app-state.js",
@@ -46,7 +66,27 @@
       ],
       "matches": [
         "https://chat.openai.com/*",
-        "https://chatgpt.com/*"
+        "https://chatgpt.com/*",
+        "https://www.doubao.com/*",
+        "https://doubao.com/*",
+        "https://chat.deepseek.com/*",
+        "https://deepseek.com/*",
+        "https://tongyi.aliyun.com/*",
+        "https://qianwen.aliyun.com/*",
+        "https://kimi.moonshot.cn/*",
+        "https://www.moonshot.cn/*",
+        "https://yiyan.baidu.com/*",
+        "https://chatglm.cn/*",
+        "https://www.chatglm.cn/*",
+        "https://xinghuo.xfyun.cn/*",
+        "https://www.xinghuo.xfyun.cn/*",
+        "https://claude.ai/*",
+        "https://poe.com/*",
+        "https://www.poe.com/*",
+        "https://chat.coze.cn/*",
+        "https://www.coze.cn/*",
+        "https://huggingface.co/chat/*",
+        "https://www.huggingface.co/chat/*"
       ]
     }
   ],
@@ -55,6 +95,26 @@
   ],
   "host_permissions": [
     "https://chat.openai.com/*",
-    "https://chatgpt.com/*"
+    "https://chatgpt.com/*",
+    "https://www.doubao.com/*",
+    "https://doubao.com/*",
+    "https://chat.deepseek.com/*",
+    "https://deepseek.com/*",
+    "https://tongyi.aliyun.com/*",
+    "https://qianwen.aliyun.com/*",
+    "https://kimi.moonshot.cn/*",
+    "https://www.moonshot.cn/*",
+    "https://yiyan.baidu.com/*",
+    "https://chatglm.cn/*",
+    "https://www.chatglm.cn/*",
+    "https://xinghuo.xfyun.cn/*",
+    "https://www.xinghuo.xfyun.cn/*",
+    "https://claude.ai/*",
+    "https://poe.com/*",
+    "https://www.poe.com/*",
+    "https://chat.coze.cn/*",
+    "https://www.coze.cn/*",
+    "https://huggingface.co/chat/*",
+    "https://www.huggingface.co/chat/*"
   ]
 }
