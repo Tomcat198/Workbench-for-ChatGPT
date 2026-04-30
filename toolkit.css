@@ -3087,6 +3087,708 @@ html[data-toolkit-folder-sorting="1"] .chatgpt-toolkit-folder-header[draggable="
   color: #64748b;
 }
 
+/* ============================================
+   UI视觉升级重构 v4 - 扁平化 + 微渐变设计
+   统一配色体系 + 专属动效 + 高级质感
+   ============================================ */
+
+/* ---------- 核心设计变量 ---------- */
+#chatgpt-conversation-toolkit,
+.chatgpt-toolkit-settings-modal,
+.chatgpt-toolkit-timeline,
+.chatgpt-toolkit-minimized,
+.chatgpt-toolkit-prompt-modal {
+  --ui-anim-fast: 120ms cubic-bezier(0.4, 0, 0.2, 1);
+  --ui-anim-medium: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --ui-anim-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  --ui-anim-bounce-in: 400ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --ui-anim-elastic: 500ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+  --ui-gradient-primary: linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%);
+  --ui-gradient-primary-hover: linear-gradient(135deg, #0d9488 0%, #0891b2 100%);
+  --ui-gradient-secondary: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  --ui-gradient-success: linear-gradient(135deg, #22c55e 0%, #10b981 100%);
+  --ui-gradient-warning: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+  --ui-gradient-danger: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+
+  --ui-gradient-panel-light: linear-gradient(180deg, #ffffff 0%, #f8fafc 50%, #f1f5f9 100%);
+  --ui-gradient-panel-dark: linear-gradient(180deg, #1e293b 0%, #0f172a 50%, #020617 100%);
+
+  --ui-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --ui-shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.06);
+  --ui-shadow-md: 0 4px 16px rgba(15, 23, 42, 0.08);
+  --ui-shadow-lg: 0 8px 32px rgba(15, 23, 42, 0.12);
+  --ui-shadow-xl: 0 16px 48px rgba(15, 23, 42, 0.16);
+  --ui-shadow-glow: 0 0 24px rgba(20, 184, 166, 0.3);
+  --ui-shadow-glow-soft: 0 0 40px rgba(20, 184, 166, 0.15);
+
+  --ui-radius-pill: 9999px;
+  --ui-radius-xl: 20px;
+  --ui-radius-lg: 16px;
+  --ui-radius-md: 12px;
+  --ui-radius-sm: 8px;
+  --ui-radius-xs: 6px;
+
+  --ui-space-xs: 4px;
+  --ui-space-sm: 6px;
+  --ui-space-md: 8px;
+  --ui-space-lg: 12px;
+  --ui-space-xl: 16px;
+  --ui-space-2xl: 20px;
+}
+
+/* ---------- 主题配色体系 ---------- */
+#chatgpt-conversation-toolkit[data-toolkit-theme="light"],
+.chatgpt-toolkit-settings-modal[data-toolkit-theme="light"],
+.chatgpt-toolkit-timeline[data-toolkit-theme="light"],
+.chatgpt-toolkit-minimized[data-toolkit-theme="light"],
+.chatgpt-toolkit-prompt-modal[data-toolkit-theme="light"] {
+  --ui-bg-primary: #ffffff;
+  --ui-bg-secondary: #f8fafc;
+  --ui-bg-tertiary: #f1f5f9;
+  --ui-bg-hover: #e2e8f0;
+  --ui-bg-active: #cbd5e1;
+  --ui-bg-accent: #f0fdfa;
+
+  --ui-border-primary: #e2e8f0;
+  --ui-border-secondary: #cbd5e1;
+  --ui-border-accent: #5eead4;
+
+  --ui-text-primary: #0f172a;
+  --ui-text-secondary: #334155;
+  --ui-text-muted: #64748b;
+  --ui-text-disabled: #94a3b8;
+  --ui-text-accent: #0f766e;
+
+  --ui-primary: #14b8a6;
+  --ui-primary-light: #99f6e4;
+  --ui-primary-dark: #0f766e;
+  --ui-primary-soft: rgba(20, 184, 166, 0.08);
+  --ui-primary-focus: rgba(20, 184, 166, 0.16);
+
+  --ui-success: #10b981;
+  --ui-warning: #f59e0b;
+  --ui-danger: #ef4444;
+  --ui-info: #3b82f6;
+
+  --ui-success-soft: rgba(16, 185, 129, 0.08);
+  --ui-warning-soft: rgba(245, 158, 11, 0.08);
+  --ui-danger-soft: rgba(239, 68, 68, 0.08);
+  --ui-info-soft: rgba(59, 130, 246, 0.08);
+
+  --ui-overlay: rgba(15, 23, 42, 0.4);
+  --ui-backdrop: rgba(2, 6, 23, 0.5);
+}
+
+#chatgpt-conversation-toolkit[data-toolkit-theme="dark"],
+.chatgpt-toolkit-settings-modal[data-toolkit-theme="dark"],
+.chatgpt-toolkit-timeline[data-toolkit-theme="dark"],
+.chatgpt-toolkit-minimized[data-toolkit-theme="dark"],
+.chatgpt-toolkit-prompt-modal[data-toolkit-theme="dark"] {
+  --ui-bg-primary: #0f172a;
+  --ui-bg-secondary: #1e293b;
+  --ui-bg-tertiary: #334155;
+  --ui-bg-hover: #475569;
+  --ui-bg-active: #64748b;
+  --ui-bg-accent: rgba(20, 184, 166, 0.06);
+
+  --ui-border-primary: #334155;
+  --ui-border-secondary: #475569;
+  --ui-border-accent: rgba(20, 184, 166, 0.4);
+
+  --ui-text-primary: #f8fafc;
+  --ui-text-secondary: #e2e8f0;
+  --ui-text-muted: #94a3b8;
+  --ui-text-disabled: #64748b;
+  --ui-text-accent: #5eead4;
+
+  --ui-primary: #14b8a6;
+  --ui-primary-light: #5eead4;
+  --ui-primary-dark: #0f766e;
+  --ui-primary-soft: rgba(20, 184, 166, 0.12);
+  --ui-primary-focus: rgba(20, 184, 166, 0.2);
+
+  --ui-success: #34d399;
+  --ui-warning: #fbbf24;
+  --ui-danger: #f87171;
+  --ui-info: #60a5fa;
+
+  --ui-success-soft: rgba(52, 211, 153, 0.12);
+  --ui-warning-soft: rgba(251, 191, 36, 0.12);
+  --ui-danger-soft: rgba(248, 113, 113, 0.12);
+  --ui-info-soft: rgba(96, 165, 250, 0.12);
+
+  --ui-overlay: rgba(15, 23, 42, 0.6);
+  --ui-backdrop: rgba(0, 0, 0, 0.6);
+}
+
+/* ---------- 基础组件优化 ---------- */
+#chatgpt-conversation-toolkit {
+  background: var(--ui-gradient-panel-light);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--ui-border-primary);
+  box-shadow: var(--ui-shadow-xl);
+  border-radius: var(--ui-radius-xl);
+  transition:
+    transform var(--ui-anim-medium),
+    box-shadow var(--ui-anim-medium),
+    opacity var(--ui-anim-medium);
+}
+
+#chatgpt-conversation-toolkit:hover {
+  box-shadow: var(--ui-shadow-xl), var(--ui-shadow-glow-soft);
+}
+
+#chatgpt-conversation-toolkit[data-toolkit-theme="dark"] {
+  background: var(--ui-gradient-panel-dark);
+}
+
+/* ---------- 按钮组件系统 ---------- */
+#chatgpt-conversation-toolkit .chatgpt-toolkit-button,
+.chatgpt-toolkit-settings-modal .chatgpt-toolkit-button,
+.chatgpt-toolkit-prompt-modal .chatgpt-toolkit-button,
+#chatgpt-conversation-toolkit .chatgpt-toolkit-minimize,
+#chatgpt-conversation-toolkit .chatgpt-toolkit-nav-btn,
+#chatgpt-conversation-toolkit .chatgpt-toolkit-search-btn {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--ui-border-primary);
+  border-radius: var(--ui-radius-md);
+  background: var(--ui-bg-secondary);
+  color: var(--ui-text-secondary);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform var(--ui-anim-fast),
+    background-color var(--ui-anim-fast),
+    border-color var(--ui-anim-fast),
+    color var(--ui-anim-fast),
+    box-shadow var(--ui-anim-fast),
+    opacity var(--ui-anim-fast);
+}
+
+#chatgpt-conversation-toolkit .chatgpt-toolkit-button::before,
+.chatgpt-toolkit-settings-modal .chatgpt-toolkit-button::before,
+.chatgpt-toolkit-prompt-modal .chatgpt-toolkit-button::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, transparent 0%, rgba(255, 255, 255, 0.15) 50%, transparent 100%);
+  opacity: 0;
+  transition: opacity var(--ui-anim-medium);
+  pointer-events: none;
+}
+
+#chatgpt-conversation-toolkit .chatgpt-toolkit-button:hover::before,
+.chatgpt-toolkit-settings-modal .chatgpt-toolkit-button:hover::before,
+.chatgpt-toolkit-prompt-modal .chatgpt-toolkit-button:hover::before {
+  opacity: 1;
+}
+
+#chatgpt-conversation-toolkit .chatgpt-toolkit-button:hover,
+#chatgpt-conversation-toolkit .chatgpt-toolkit-minimize:hover,
+#chatgpt-conversation-toolkit .chatgpt-toolkit-nav-btn:hover:not(:disabled),
+.chatgpt-toolkit-settings-modal .chatgpt-toolkit-button:hover,
+.chatgpt-toolkit-prompt-modal .chatgpt-toolkit-button:hover {
+  background: var(--ui-bg-hover);
+  border-color: var(--ui-border-secondary);
+  color: var(--ui-text-primary);
+  transform: translateY(-1px);
+  box-shadow: var(--ui-shadow-sm);
+}
+
+#chatgpt-conversation-toolkit .chatgpt-toolkit-button:active,
+#chatgpt-conversation-toolkit .chatgpt-toolkit-minimize:active,
+#chatgpt-conversation-toolkit .chatgpt-toolkit-nav-btn:active:not(:disabled),
+.chatgpt-toolkit-settings-modal .chatgpt-toolkit-button:active,
+.chatgpt-toolkit-prompt-modal .chatgpt-toolkit-button:active {
+  transform: translateY(0);
+  background: var(--ui-bg-active);
+  box-shadow: var(--ui-shadow-xs);
+  transition-duration: 80ms;
+}
+
+/* ---------- 主要按钮样式 ---------- */
+#chatgpt-conversation-toolkit .chatgpt-toolkit-button.primary,
+#chatgpt-conversation-toolkit .chatgpt-toolkit-search-btn,
+.chatgpt-toolkit-settings-modal .chatgpt-toolkit-button.primary,
+.chatgpt-toolkit-prompt-modal .chatgpt-toolkit-button.primary,
+.chatgpt-toolkit-prompt-modal .chatgpt-toolkit-prompt-add,
+.chatgpt-toolkit-prompt-modal .chatgpt-toolkit-prompt-footer-actions button:last-child {
+  background: var(--ui-gradient-primary);
+  border-color: transparent;
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(20, 184, 166, 0.25);
+  letter-spacing: 0.01em;
+}
+
+#chatgpt-conversation-toolkit .chatgpt-toolkit-button.primary:hover,
+#chatgpt-conversation-toolkit .chatgpt-toolkit-search-btn:hover,
+.chatgpt-toolkit-settings-modal .chatgpt-toolkit-button.primary:hover,
+.chatgpt-toolkit-prompt-modal .chatgpt-toolkit-button.primary:hover,
+.chatgpt-toolkit-prompt-modal .chatgpt-toolkit-prompt-add:hover,
+.chatgpt-toolkit-prompt-modal .chatgpt-toolkit-prompt-footer-actions button:last-child:hover {
+  background: var(--ui-gradient-primary-hover);
+  box-shadow: 0 6px 20px rgba(20, 184, 166, 0.35), var(--ui-shadow-glow);
+  transform: translateY(-2px);
+}
+
+#chatgpt-conversation-toolkit .chatgpt-toolkit-button.primary:active,
+#chatgpt-conversation-toolkit .chatgpt-toolkit-search-btn:active,
+.chatgpt-toolkit-settings-modal .chatgpt-toolkit-button.primary:active,
+.chatgpt-toolkit-prompt-modal .chatgpt-toolkit-button.primary:active,
+.chatgpt-toolkit-prompt-modal .chatgpt-toolkit-prompt-add:active,
+.chatgpt-toolkit-prompt-modal .chatgpt-toolkit-prompt-footer-actions button:last-child:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(20, 184, 166, 0.2);
+}
+
+/* ---------- 入口按钮样式 ---------- */
+#chatgpt-conversation-toolkit .chatgpt-toolkit-button.entry {
+  min-height: 34px;
+  border-radius: var(--ui-radius-sm);
+  background: var(--ui-bg-secondary);
+  border: 1px solid var(--ui-border-primary);
+  color: var(--ui-text-secondary);
+  font-weight: 500;
+  font-size: 12px;
+}
+
+#chatgpt-conversation-toolkit .chatgpt-toolkit-button.entry:hover {
+  background: var(--ui-bg-hover);
+  border-color: var(--ui-border-secondary);
+  color: var(--ui-text-primary);
+  transform: translateX(2px);
+}
+
+/* ---------- 输入框样式优化 ---------- */
+#chatgpt-conversation-toolkit .chatgpt-toolkit-search-input,
+#chatgpt-conversation-toolkit .chatgpt-toolkit-language-select,
+.chatgpt-toolkit-settings-modal input,
+.chatgpt-toolkit-settings-modal select,
+.chatgpt-toolkit-prompt-modal input,
+.chatgpt-toolkit-prompt-modal select,
+.chatgpt-toolkit-prompt-modal textarea {
+  border: 1px solid var(--ui-border-primary);
+  border-radius: var(--ui-radius-md);
+  background: var(--ui-bg-primary);
+  color: var(--ui-text-primary);
+  transition:
+    border-color var(--ui-anim-fast),
+    box-shadow var(--ui-anim-fast),
+    background-color var(--ui-anim-fast);
+}
+
+#chatgpt-conversation-toolkit .chatgpt-toolkit-search-input:hover,
+#chatgpt-conversation-toolkit .chatgpt-toolkit-language-select:hover,
+.chatgpt-toolkit-settings-modal input:hover,
+.chatgpt-toolkit-settings-modal select:hover,
+.chatgpt-toolkit-prompt-modal input:hover,
+.chatgpt-toolkit-prompt-modal select:hover,
+.chatgpt-toolkit-prompt-modal textarea:hover {
+  border-color: var(--ui-border-secondary);
+  background: var(--ui-bg-secondary);
+}
+
+#chatgpt-conversation-toolkit .chatgpt-toolkit-search-input:focus,
+#chatgpt-conversation-toolkit .chatgpt-toolkit-language-select:focus,
+.chatgpt-toolkit-settings-modal input:focus,
+.chatgpt-toolkit-settings-modal select:focus,
+.chatgpt-toolkit-prompt-modal input:focus,
+.chatgpt-toolkit-prompt-modal select:focus,
+.chatgpt-toolkit-prompt-modal textarea:focus {
+  outline: none;
+  border-color: var(--ui-primary);
+  box-shadow: 0 0 0 3px var(--ui-primary-focus);
+  background: var(--ui-bg-primary);
+}
+
+/* ---------- 最小化按钮优化 ---------- */
+.chatgpt-toolkit-minimized {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  border: 1px solid var(--ui-border-primary);
+  background: var(--ui-gradient-panel-light);
+  box-shadow: var(--ui-shadow-lg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transition:
+    transform var(--ui-anim-bounce-in),
+    box-shadow var(--ui-anim-medium),
+    border-color var(--ui-anim-medium),
+    background var(--ui-anim-medium);
+}
+
+.chatgpt-toolkit-minimized[data-toolkit-theme="dark"] {
+  background: var(--ui-gradient-panel-dark);
+}
+
+.chatgpt-toolkit-minimized:hover {
+  transform: scale(1.05);
+  box-shadow: var(--ui-shadow-xl), var(--ui-shadow-glow-soft);
+  border-color: var(--ui-primary);
+}
+
+.chatgpt-toolkit-minimized:active {
+  transform: scale(0.98);
+}
+
+/* ---------- 时间线导航优化 ---------- */
+.chatgpt-toolkit-timeline-panel {
+  background: var(--ui-gradient-panel-light);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--ui-border-primary);
+  box-shadow: var(--ui-shadow-lg);
+  border-radius: var(--ui-radius-xl);
+}
+
+.chatgpt-toolkit-timeline[data-toolkit-theme="dark"] .chatgpt-toolkit-timeline-panel {
+  background: var(--ui-gradient-panel-dark);
+}
+
+.chatgpt-toolkit-timeline-dot {
+  transition:
+    transform var(--ui-anim-bounce-in),
+    background-color var(--ui-anim-fast),
+    box-shadow var(--ui-anim-fast);
+}
+
+.chatgpt-toolkit-timeline-node:hover .chatgpt-toolkit-timeline-dot {
+  transform: translate(-50%, -50%) scale(1.3);
+  background: var(--ui-primary);
+  box-shadow: 0 0 0 4px var(--ui-primary-soft);
+}
+
+.chatgpt-toolkit-timeline-node.is-active .chatgpt-toolkit-timeline-dot {
+  transform: translate(-50%, -50%) scale(1.4);
+  background: var(--ui-primary);
+  box-shadow: 0 0 0 5px var(--ui-primary-soft), 0 0 20px var(--ui-primary);
+  animation: tk-pulse-ring 2s ease-in-out infinite;
+}
+
+@keyframes tk-pulse-ring {
+  0%, 100% {
+    box-shadow: 0 0 0 5px var(--ui-primary-soft), 0 0 20px var(--ui-primary);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(20, 184, 166, 0.06), 0 0 30px var(--ui-primary);
+  }
+}
+
+/* ---------- 提示词面板优化 ---------- */
+.chatgpt-toolkit-prompt-panel {
+  background: var(--ui-gradient-panel-light);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--ui-border-primary);
+  box-shadow: var(--ui-shadow-xl);
+  border-radius: var(--ui-radius-xl);
+}
+
+.chatgpt-toolkit-prompt-modal[data-toolkit-theme="dark"] .chatgpt-toolkit-prompt-panel {
+  background: var(--ui-gradient-panel-dark);
+}
+
+.chatgpt-toolkit-prompt-item {
+  position: relative;
+  border: 1px solid var(--ui-border-primary);
+  border-radius: var(--ui-radius-md);
+  background: var(--ui-bg-primary);
+  transition:
+    transform var(--ui-anim-fast),
+    box-shadow var(--ui-anim-fast),
+    border-color var(--ui-anim-fast),
+    background-color var(--ui-anim-fast);
+  overflow: hidden;
+}
+
+.chatgpt-toolkit-prompt-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--ui-primary);
+  transform: scaleY(0);
+  transition: transform var(--ui-anim-medium);
+}
+
+.chatgpt-toolkit-prompt-item:hover::before,
+.chatgpt-toolkit-prompt-item.is-selected::before {
+  transform: scaleY(1);
+}
+
+.chatgpt-toolkit-prompt-item:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--ui-shadow-md);
+  border-color: var(--ui-border-accent);
+  background: var(--ui-bg-accent);
+}
+
+.chatgpt-toolkit-prompt-item.is-selected {
+  border-color: var(--ui-primary);
+  background: var(--ui-primary-soft);
+  box-shadow: 0 0 0 1px var(--ui-primary), var(--ui-shadow-sm);
+}
+
+/* ---------- 设置面板优化 ---------- */
+.chatgpt-toolkit-settings-panel {
+  background: var(--ui-gradient-panel-light);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--ui-border-primary);
+  box-shadow: var(--ui-shadow-xl);
+  border-radius: var(--ui-radius-xl);
+}
+
+.chatgpt-toolkit-settings-modal[data-toolkit-theme="dark"] .chatgpt-toolkit-settings-panel {
+  background: var(--ui-gradient-panel-dark);
+}
+
+.chatgpt-toolkit-settings-group {
+  border: 1px solid var(--ui-border-primary);
+  border-radius: var(--ui-radius-lg);
+  background: var(--ui-bg-secondary);
+  padding: var(--ui-space-lg);
+}
+
+/* ---------- 弹窗动画优化 ---------- */
+@keyframes tk-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes tk-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.chatgpt-toolkit-settings-modal.is-visible .chatgpt-toolkit-settings-backdrop,
+.chatgpt-toolkit-prompt-modal.is-visible .chatgpt-toolkit-prompt-backdrop {
+  animation: tk-backdrop-in var(--ui-anim-medium) ease-out;
+}
+
+.chatgpt-toolkit-settings-modal.is-visible .chatgpt-toolkit-settings-panel,
+.chatgpt-toolkit-prompt-modal.is-visible .chatgpt-toolkit-prompt-panel {
+  animation: tk-modal-in var(--ui-anim-bounce-in);
+}
+
+/* ---------- Toast 提示优化 ---------- */
+.chatgpt-toolkit-prompt-toast {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  opacity: 0;
+  pointer-events: none;
+  padding: 8px 16px;
+  border-radius: var(--ui-radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  transition:
+    opacity var(--ui-anim-fast),
+    transform var(--ui-anim-medium);
+  z-index: 10;
+}
+
+.chatgpt-toolkit-prompt-toast[data-tone="success"] {
+  background: var(--ui-success);
+  color: #ffffff;
+}
+
+.chatgpt-toolkit-prompt-toast[data-tone="error"] {
+  background: var(--ui-danger);
+  color: #ffffff;
+}
+
+.chatgpt-toolkit-prompt-toast.is-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ---------- 状态提示优化 ---------- */
+#chatgpt-conversation-toolkit .chatgpt-toolkit-status {
+  border-radius: var(--ui-radius-md);
+  border: 1px solid var(--ui-border-primary);
+  background: var(--ui-bg-secondary);
+  color: var(--ui-text-muted);
+  padding: 8px 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  transition:
+    background-color var(--ui-anim-fast),
+    border-color var(--ui-anim-fast),
+    color var(--ui-anim-fast);
+}
+
+#chatgpt-conversation-toolkit .chatgpt-toolkit-status[data-tone="success"] {
+  background: var(--ui-success-soft);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: var(--ui-success);
+}
+
+#chatgpt-conversation-toolkit .chatgpt-toolkit-status[data-tone="info"] {
+  background: var(--ui-info-soft);
+  border-color: rgba(96, 165, 250, 0.3);
+  color: var(--ui-info);
+}
+
+/* ---------- 搜索高亮优化 ---------- */
+.chatgpt-toolkit-search-highlight {
+  outline: 2px solid var(--ui-primary) !important;
+  outline-offset: 2px;
+  border-radius: var(--ui-radius-md);
+  animation: tk-highlight-pulse 1.2s ease-out;
+  box-shadow: 0 0 0 4px var(--ui-primary-soft);
+}
+
+@keyframes tk-highlight-pulse {
+  0% {
+    outline-color: var(--ui-primary);
+    box-shadow: 0 0 0 4px var(--ui-primary-soft);
+  }
+  50% {
+    outline-color: var(--ui-primary-light);
+    box-shadow: 0 0 0 8px var(--ui-primary-soft);
+  }
+  100% {
+    outline-color: var(--ui-primary);
+    box-shadow: 0 0 0 4px var(--ui-primary-soft);
+  }
+}
+
+.chatgpt-toolkit-search-text-match {
+  background: rgba(20, 184, 166, 0.2);
+  border-radius: 3px;
+  padding: 1px 2px;
+  margin: 0 -1px;
+  transition: background-color var(--ui-anim-fast);
+}
+
+.chatgpt-toolkit-search-text-match.chatgpt-toolkit-search-text-active {
+  background: var(--ui-primary);
+  color: #ffffff;
+  box-shadow: 0 0 0 2px var(--ui-primary-light);
+}
+
+/* ---------- 时间线目标高亮 ---------- */
+.chatgpt-toolkit-timeline-target {
+  outline: 2px solid var(--ui-primary) !important;
+  outline-offset: 3px;
+  border-radius: var(--ui-radius-md);
+  animation: tk-timeline-pulse 1s ease-out;
+  box-shadow: 0 0 0 6px var(--ui-primary-soft);
+}
+
+@keyframes tk-timeline-pulse {
+  0% {
+    outline-color: var(--ui-primary);
+  }
+  50% {
+    outline-color: var(--ui-primary-light);
+  }
+  100% {
+    outline-color: var(--ui-primary);
+  }
+}
+
+/* ---------- 折叠/展开动画 ---------- */
+#chatgpt-conversation-toolkit .chatgpt-toolkit-export-menu {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-8px);
+  transition:
+    max-height var(--ui-anim-medium) ease-out,
+    opacity var(--ui-anim-fast),
+    transform var(--ui-anim-medium);
+  overflow: hidden;
+}
+
+#chatgpt-conversation-toolkit .chatgpt-toolkit-export-menu.is-open {
+  max-height: 200px;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ---------- 焦点状态优化 ---------- */
+#chatgpt-conversation-toolkit button:focus-visible,
+#chatgpt-conversation-toolkit input:focus-visible,
+#chatgpt-conversation-toolkit select:focus-visible,
+.chatgpt-toolkit-settings-modal button:focus-visible,
+.chatgpt-toolkit-settings-modal input:focus-visible,
+.chatgpt-toolkit-settings-modal select:focus-visible,
+.chatgpt-toolkit-prompt-modal button:focus-visible,
+.chatgpt-toolkit-prompt-modal input:focus-visible,
+.chatgpt-toolkit-prompt-modal select:focus-visible,
+.chatgpt-toolkit-prompt-modal textarea:focus-visible,
+.chatgpt-toolkit-timeline-node:focus-visible .chatgpt-toolkit-timeline-dot {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ui-primary-focus), 0 0 0 6px var(--ui-primary-soft);
+  border-color: var(--ui-primary);
+}
+
+/* ---------- 禁用状态优化 ---------- */
+#chatgpt-conversation-toolkit button:disabled,
+.chatgpt-toolkit-settings-modal button:disabled,
+.chatgpt-toolkit-prompt-modal button:disabled,
+#chatgpt-conversation-toolkit .chatgpt-toolkit-nav-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ---------- 响应式优化 ---------- */
+@media (max-width: 768px) {
+  #chatgpt-conversation-toolkit {
+    width: min(340px, calc(100vw - 16px));
+    padding: 12px;
+    border-radius: var(--ui-radius-lg);
+  }
+
+  .chatgpt-toolkit-prompt-panel,
+  .chatgpt-toolkit-settings-panel {
+    width: calc(100vw - 24px);
+    left: 12px;
+    right: 12px;
+    border-radius: var(--ui-radius-lg);
+  }
+
+  #chatgpt-conversation-toolkit .chatgpt-toolkit-button.primary:hover {
+    transform: none;
+  }
+}
+
+/* ---------- 减少动效偏好 ---------- */
+@media (prefers-reduced-motion: reduce) {
+  #chatgpt-conversation-toolkit *,
+  .chatgpt-toolkit-settings-modal *,
+  .chatgpt-toolkit-timeline *,
+  .chatgpt-toolkit-minimized *,
+  .chatgpt-toolkit-prompt-modal * {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 #chatgpt-conversation-toolkit[data-toolkit-theme] .chatgpt-toolkit-status {
   background: #f1f5f9;
   border-color: #e2e8f0;

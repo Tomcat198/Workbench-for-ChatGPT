@@ -256,6 +256,13 @@ const getTurnRoleNodesFromContainer = (turnNode, role) => {
 };
 
 const getConversationNodes = () => {
+  if (typeof getPlatformConversationNodes === "function") {
+    const platformNodes = getPlatformConversationNodes();
+    if (platformNodes.length > 0) {
+      return platformNodes;
+    }
+  }
+
   const main = getMainContainer();
   if (!main) {
     return [];
@@ -293,6 +300,13 @@ const getRoleFromNodeOrDataset = (node) =>
   normalizeRoleValue(node?.getAttribute?.("data-message-author-role") || node?.dataset?.messageAuthorRole);
 
 const getMessageRoleFromDom = (node) => {
+  if (typeof getPlatformMessageRoleFromNode === "function") {
+    const platformRole = getPlatformMessageRoleFromNode(node);
+    if (platformRole !== "unknown") {
+      return platformRole;
+    }
+  }
+
   if (!(node instanceof Element)) {
     return "unknown";
   }
@@ -849,3 +863,640 @@ const getMessageDomKey = (node, index = -1) => {
 
 const getUserMessageElements = () =>
   getMessageElements().filter((node) => getMessageRoleFromDom(node) === "user");
+
+/* ============================================
+   多平台适配支持 - Multi-platform Support
+   支持: ChatGPT, 豆包(Doubao), DeepSeek, 通义千问(Tongyi), Kimi, 文心一言(Wenxin), ChatGLM, 星火(Xinghuo), Claude, Poe, Coze, HuggingFace
+   ============================================ */
+
+const PLATFORM_TYPES = Object.freeze({
+  CHATGPT: "chatgpt",
+  DOUBAO: "doubao",
+  DEEPSEEK: "deepseek",
+  TONGYI: "tongyi",
+  KIMI: "kimi",
+  WENXIN: "wenxin",
+  CHATGLM: "chatglm",
+  XINGHUO: "xinghuo",
+  CLAUDE: "claude",
+  POE: "poe",
+  COZE: "coze",
+  HUGGINGFACE: "huggingface",
+  UNKNOWN: "unknown",
+});
+
+const PLATFORM_CONFIGS = Object.freeze({
+  [PLATFORM_TYPES.CHATGPT]: {
+    name: "ChatGPT",
+    displayName: "ChatGPT",
+    patterns: [/chat\.openai\.com/i, /chatgpt\.com/i],
+    turnContainerSelectors: [
+      'section[data-testid^="conversation-turn-"]',
+      "section[data-turn-id]",
+      "section[data-turn]",
+      "[data-message-author-role]",
+      "article",
+    ],
+    messageContentSelectors: [".markdown", ".prose", "[data-message-content]"],
+    composerSelectors: [
+      'div.ProseMirror#prompt-textarea[contenteditable="true"][role="textbox"]',
+      '#prompt-textarea[contenteditable="true"]',
+      '[data-type="unified-composer"] div[contenteditable="true"][role="textbox"]',
+      'div[contenteditable="true"][role="textbox"]',
+      'textarea[name="prompt-textarea"]:not([style*="display: none"])',
+    ],
+    sendButtonSelectors: [
+      'button[data-testid="send-button"]',
+      'button[data-testid="composer-send-button"]',
+      'button[aria-label*="Send"]',
+      'button[aria-label*="发送"]',
+      'button[type="submit"][aria-label]',
+    ],
+    roleAttribute: "data-message-author-role",
+    userRoleValue: "user",
+    assistantRoleValue: "assistant",
+  },
+
+  [PLATFORM_TYPES.DOUBAO]: {
+    name: "Doubao",
+    displayName: "豆包",
+    patterns: [/doubao\.com/i],
+    turnContainerSelectors: [
+      '[data-testid^="message-item"]',
+      '[data-message-id]',
+      "[data-role]",
+      ".message-item",
+      ".chat-message",
+      '[class*="message_"]',
+      '[class*="Message_"]',
+    ],
+    messageContentSelectors: [
+      "[data-testid='message-content']",
+      ".message-content",
+      ".chat-content",
+      '[class*="content_"]',
+      '[class*="Content_"]',
+    ],
+    composerSelectors: [
+      'div[contenteditable="true"][data-testid="chat-input"]',
+      'div[contenteditable="true"][role="textbox"]',
+      'textarea[data-testid="chat-input"]',
+      "textarea.chat-input",
+      '[class*="textarea_"]',
+      '[class*="editor_"]',
+    ],
+    sendButtonSelectors: [
+      'button[data-testid="send-btn"]',
+      'button[aria-label*="发送"]',
+      'button[class*="send_"]',
+      "[class*='Send_'] button",
+    ],
+    roleAttribute: "data-role",
+    userRoleValue: "user",
+    assistantRoleValue: "assistant",
+  },
+
+  [PLATFORM_TYPES.DEEPSEEK]: {
+    name: "DeepSeek",
+    displayName: "DeepSeek",
+    patterns: [/deepseek\.com/i],
+    turnContainerSelectors: [
+      '[data-testid="message"]',
+      '[data-message-id]',
+      "[data-role]",
+      ".message-wrapper",
+      ".chat-message",
+      '[class*="message-"]',
+      '[class*="Message_"]',
+    ],
+    messageContentSelectors: [
+      "[data-testid='message-content']",
+      ".message-content",
+      ".markdown-body",
+      '[class*="content_"]',
+      '[class*="Content_"]',
+    ],
+    composerSelectors: [
+      'div[contenteditable="true"][role="textbox"]',
+      'textarea[placeholder*="输入"]',
+      'textarea[placeholder*="ask"]',
+      '[class*="textarea_"]',
+      '[class*="editor_"]',
+      '[class*="Composer_"] div[contenteditable="true"]',
+    ],
+    sendButtonSelectors: [
+      'button[aria-label*="发送"]',
+      'button[aria-label*="Send"]',
+      'button[class*="send_"]',
+      "[class*='Send_'] button",
+      '[data-testid="send-button"]',
+    ],
+    roleAttribute: "data-role",
+    userRoleValue: "user",
+    assistantRoleValue: "assistant",
+  },
+
+  [PLATFORM_TYPES.TONGYI]: {
+    name: "Tongyi",
+    displayName: "通义千问",
+    patterns: [/tongyi\.aliyun\.com/i, /qianwen\.aliyun\.com/i],
+    turnContainerSelectors: [
+      '[data-testid="message-item"]',
+      '[data-message-id]',
+      ".message-item",
+      ".chat-item",
+      '[class*="message-"]',
+      '[class*="Message_"]',
+      '[class*="ChatItem_"]',
+    ],
+    messageContentSelectors: [
+      "[data-testid='message-content']",
+      ".message-content",
+      ".chat-content",
+      "[class*='content_']",
+      "[class*='Content_']",
+      ".markdown-body",
+    ],
+    composerSelectors: [
+      'div[contenteditable="true"][role="textbox"]',
+      'textarea[placeholder*="输入"]',
+      '[class*="textarea_"]',
+      '[class*="editor_"]',
+      '[class*="Input_"] textarea',
+    ],
+    sendButtonSelectors: [
+      'button[aria-label*="发送"]',
+      'button[class*="send_"]',
+      "[class*='Send_'] button",
+      '[data-testid="send"]',
+    ],
+    roleAttribute: "data-role",
+    userRoleValue: "user",
+    assistantRoleValue: "assistant",
+  },
+
+  [PLATFORM_TYPES.KIMI]: {
+    name: "Kimi",
+    displayName: "Kimi",
+    patterns: [/kimi\.moonshot\.cn/i, /moonshot\.cn/i],
+    turnContainerSelectors: [
+      '[data-testid="message"]',
+      '[data-message-id]',
+      "[data-role]",
+      ".message-bubble",
+      ".chat-message",
+      '[class*="message-"]',
+      '[class*="Message_"]',
+      '[class*="Bubble_"]',
+    ],
+    messageContentSelectors: [
+      "[data-testid='message-content']",
+      ".message-content",
+      "[class*='content_']",
+      "[class*='Content_']",
+      ".markdown-body",
+    ],
+    composerSelectors: [
+      'div[contenteditable="true"][role="textbox"]',
+      'textarea[placeholder*="输入"]',
+      '[class*="textarea_"]',
+      '[class*="editor_"]',
+      '[class*="Composer_"]',
+    ],
+    sendButtonSelectors: [
+      'button[aria-label*="发送"]',
+      'button[aria-label*="Send"]',
+      'button[class*="send_"]',
+      "[class*='Send_'] button",
+    ],
+    roleAttribute: "data-role",
+    userRoleValue: "user",
+    assistantRoleValue: "assistant",
+  },
+
+  [PLATFORM_TYPES.WENXIN]: {
+    name: "Wenxin",
+    displayName: "文心一言",
+    patterns: [/yiyan\.baidu\.com/i],
+    turnContainerSelectors: [
+      '[data-testid="message-item"]',
+      '[data-message-id]',
+      "[data-role]",
+      ".message-item",
+      ".chat-item",
+      '[class*="message-"]',
+      '[class*="Message_"]',
+    ],
+    messageContentSelectors: [
+      "[data-testid='message-content']",
+      ".message-content",
+      "[class*='content_']",
+      "[class*='Content_']",
+    ],
+    composerSelectors: [
+      'div[contenteditable="true"][role="textbox"]',
+      'textarea[placeholder*="输入"]',
+      '[class*="textarea_"]',
+      '[class*="editor_"]',
+    ],
+    sendButtonSelectors: [
+      'button[aria-label*="发送"]',
+      'button[class*="send_"]',
+      "[class*='Send_'] button",
+    ],
+    roleAttribute: "data-role",
+    userRoleValue: "user",
+    assistantRoleValue: "assistant",
+  },
+
+  [PLATFORM_TYPES.CHATGLM]: {
+    name: "ChatGLM",
+    displayName: "智谱清言",
+    patterns: [/chatglm\.cn/i],
+    turnContainerSelectors: [
+      '[data-testid="message"]',
+      '[data-message-id]',
+      "[data-role]",
+      ".message-item",
+      '[class*="message-"]',
+      '[class*="Message_"]',
+    ],
+    messageContentSelectors: [
+      "[data-testid='message-content']",
+      ".message-content",
+      "[class*='content_']",
+      "[class*='Content_']",
+    ],
+    composerSelectors: [
+      'div[contenteditable="true"][role="textbox"]',
+      'textarea[placeholder*="输入"]',
+      '[class*="textarea_"]',
+      '[class*="editor_"]',
+    ],
+    sendButtonSelectors: [
+      'button[aria-label*="发送"]',
+      'button[class*="send_"]',
+      "[class*='Send_'] button",
+    ],
+    roleAttribute: "data-role",
+    userRoleValue: "user",
+    assistantRoleValue: "assistant",
+  },
+
+  [PLATFORM_TYPES.XINGHUO]: {
+    name: "Xinghuo",
+    displayName: "星火大模型",
+    patterns: [/xinghuo\.xfyun\.cn/i],
+    turnContainerSelectors: [
+      '[data-testid="message-item"]',
+      '[data-message-id]',
+      "[data-role]",
+      ".message-item",
+      '[class*="message-"]',
+      '[class*="Message_"]',
+    ],
+    messageContentSelectors: [
+      "[data-testid='message-content']",
+      ".message-content",
+      "[class*='content_']",
+      "[class*='Content_']",
+    ],
+    composerSelectors: [
+      'div[contenteditable="true"][role="textbox"]',
+      'textarea[placeholder*="输入"]',
+      '[class*="textarea_"]',
+      '[class*="editor_"]',
+    ],
+    sendButtonSelectors: [
+      'button[aria-label*="发送"]',
+      'button[class*="send_"]',
+      "[class*='Send_'] button",
+    ],
+    roleAttribute: "data-role",
+    userRoleValue: "user",
+    assistantRoleValue: "assistant",
+  },
+
+  [PLATFORM_TYPES.CLAUDE]: {
+    name: "Claude",
+    displayName: "Claude",
+    patterns: [/claude\.ai/i],
+    turnContainerSelectors: [
+      '[data-testid="message"]',
+      '[data-message-id]',
+      "[data-role]",
+      ".message-wrapper",
+      '[class*="message-"]',
+      '[class*="Message_"]',
+    ],
+    messageContentSelectors: [
+      "[data-testid='message-content']",
+      ".message-content",
+      "[class*='content_']",
+      "[class*='Content_']",
+    ],
+    composerSelectors: [
+      'div[contenteditable="true"][role="textbox"]',
+      'textarea[placeholder*="Message"]',
+      '[class*="textarea_"]',
+      '[class*="editor_"]',
+    ],
+    sendButtonSelectors: [
+      'button[aria-label*="Send"]',
+      'button[class*="send_"]',
+      "[class*='Send_'] button",
+    ],
+    roleAttribute: "data-role",
+    userRoleValue: "user",
+    assistantRoleValue: "assistant",
+  },
+
+  [PLATFORM_TYPES.POE]: {
+    name: "Poe",
+    displayName: "Poe",
+    patterns: [/poe\.com/i],
+    turnContainerSelectors: [
+      '[data-testid="message"]',
+      '[data-message-id]',
+      "[data-role]",
+      ".message-bubble",
+      '[class*="message-"]',
+      '[class*="Message_"]',
+    ],
+    messageContentSelectors: [
+      "[data-testid='message-content']",
+      ".message-content",
+      "[class*='content_']",
+      "[class*='Content_']",
+    ],
+    composerSelectors: [
+      'div[contenteditable="true"][role="textbox"]',
+      'textarea[placeholder*="Message"]',
+      '[class*="textarea_"]',
+      '[class*="editor_"]',
+    ],
+    sendButtonSelectors: [
+      'button[aria-label*="Send"]',
+      'button[class*="send_"]',
+      "[class*='Send_'] button",
+    ],
+    roleAttribute: "data-role",
+    userRoleValue: "user",
+    assistantRoleValue: "assistant",
+  },
+
+  [PLATFORM_TYPES.COZE]: {
+    name: "Coze",
+    displayName: "扣子",
+    patterns: [/coze\.cn/i],
+    turnContainerSelectors: [
+      '[data-testid="message"]',
+      '[data-message-id]',
+      "[data-role]",
+      ".message-item",
+      '[class*="message-"]',
+      '[class*="Message_"]',
+    ],
+    messageContentSelectors: [
+      "[data-testid='message-content']",
+      ".message-content",
+      "[class*='content_']",
+      "[class*='Content_']",
+    ],
+    composerSelectors: [
+      'div[contenteditable="true"][role="textbox"]',
+      'textarea[placeholder*="输入"]',
+      '[class*="textarea_"]',
+      '[class*="editor_"]',
+    ],
+    sendButtonSelectors: [
+      'button[aria-label*="发送"]',
+      'button[aria-label*="Send"]',
+      'button[class*="send_"]',
+      "[class*='Send_'] button",
+    ],
+    roleAttribute: "data-role",
+    userRoleValue: "user",
+    assistantRoleValue: "assistant",
+  },
+
+  [PLATFORM_TYPES.HUGGINGFACE]: {
+    name: "HuggingFace",
+    displayName: "HuggingFace Chat",
+    patterns: [/huggingface\.co\/chat/i],
+    turnContainerSelectors: [
+      '[data-testid="message"]',
+      '[data-message-id]',
+      "[data-role]",
+      ".message-wrapper",
+      '[class*="message-"]',
+      '[class*="Message_"]',
+    ],
+    messageContentSelectors: [
+      "[data-testid='message-content']",
+      ".message-content",
+      "[class*='content_']",
+      "[class*='Content_"]',
+    ],
+    composerSelectors: [
+      'div[contenteditable="true"][role="textbox"]',
+      'textarea[placeholder*="Message"]',
+      '[class*="textarea_"]',
+      '[class*="editor_"]',
+    ],
+    sendButtonSelectors: [
+      'button[aria-label*="Send"]',
+      'button[class*="send_"]',
+      "[class*='Send_'] button",
+    ],
+    roleAttribute: "data-role",
+    userRoleValue: "user",
+    assistantRoleValue: "assistant",
+  },
+});
+
+let currentPlatform = null;
+let currentPlatformConfig = null;
+
+const detectPlatform = () => {
+  const hostname = window.location.hostname;
+  const pathname = window.location.pathname;
+  const fullUrl = `${hostname}${pathname}`;
+
+  for (const [platform, config] of Object.entries(PLATFORM_CONFIGS)) {
+    if (platform === PLATFORM_TYPES.UNKNOWN) continue;
+    if (config.patterns.some((pattern) => pattern.test(fullUrl))) {
+      currentPlatform = platform;
+      currentPlatformConfig = config;
+      return platform;
+    }
+  }
+
+  currentPlatform = PLATFORM_TYPES.CHATGPT;
+  currentPlatformConfig = PLATFORM_CONFIGS[PLATFORM_TYPES.CHATGPT];
+  return currentPlatform;
+};
+
+const getCurrentPlatform = () => {
+  if (!currentPlatform) {
+    detectPlatform();
+  }
+  return currentPlatform;
+};
+
+const getPlatformConfig = () => {
+  if (!currentPlatformConfig) {
+    detectPlatform();
+  }
+  return currentPlatformConfig;
+};
+
+const isSupportedPlatform = () => {
+  const platform = getCurrentPlatform();
+  return platform !== PLATFORM_TYPES.UNKNOWN;
+};
+
+const getPlatformTurnContainerSelectors = () => {
+  const config = getPlatformConfig();
+  return config?.turnContainerSelectors || PLATFORM_CONFIGS[PLATFORM_TYPES.CHATGPT].turnContainerSelectors;
+};
+
+const getPlatformMessageContentSelectors = () => {
+  const config = getPlatformConfig();
+  return config?.messageContentSelectors || PLATFORM_CONFIGS[PLATFORM_TYPES.CHATGPT].messageContentSelectors;
+};
+
+const getPlatformComposerSelectors = () => {
+  const config = getPlatformConfig();
+  return config?.composerSelectors || PLATFORM_CONFIGS[PLATFORM_TYPES.CHATGPT].composerSelectors;
+};
+
+const getPlatformSendButtonSelectors = () => {
+  const config = getPlatformConfig();
+  return config?.sendButtonSelectors || PLATFORM_CONFIGS[PLATFORM_TYPES.CHATGPT].sendButtonSelectors;
+};
+
+const getPlatformRoleAttribute = () => {
+  const config = getPlatformConfig();
+  return config?.roleAttribute || PLATFORM_CONFIGS[PLATFORM_TYPES.CHATGPT].roleAttribute;
+};
+
+const getPlatformUserRoleValue = () => {
+  const config = getPlatformConfig();
+  return config?.userRoleValue || PLATFORM_CONFIGS[PLATFORM_TYPES.CHATGPT].userRoleValue;
+};
+
+const getPlatformAssistantRoleValue = () => {
+  const config = getPlatformConfig();
+  return config?.assistantRoleValue || PLATFORM_CONFIGS[PLATFORM_TYPES.CHATGPT].assistantRoleValue;
+};
+
+const getPlatformComposerElement = () => {
+  const selectors = getPlatformComposerSelectors();
+  for (const selector of selectors) {
+    const element = document.querySelector(selector);
+    if (element instanceof HTMLElement || element instanceof HTMLTextAreaElement) {
+      return element;
+    }
+  }
+  return null;
+};
+
+const getPlatformSendButtonElement = () => {
+  const selectors = getPlatformSendButtonSelectors();
+  for (const selector of selectors) {
+    const element = document.querySelector(selector);
+    if (element instanceof HTMLButtonElement) {
+      return element;
+    }
+  }
+  return null;
+};
+
+const getPlatformMessageRoleFromNode = (node) => {
+  const roleAttr = getPlatformRoleAttribute();
+  const userRole = getPlatformUserRoleValue();
+  const assistantRole = getPlatformAssistantRoleValue();
+
+  if (!(node instanceof Element)) {
+    return "unknown";
+  }
+
+  const explicitRole = normalizeRoleValue(node.getAttribute(roleAttr) || node.dataset?.messageAuthorRole);
+  if (explicitRole) {
+    return explicitRole;
+  }
+
+  const innerRoleElement = node.querySelector(`[${roleAttr}]`);
+  if (innerRoleElement) {
+    const innerRole = normalizeRoleValue(innerRoleElement.getAttribute(roleAttr));
+    if (innerRole) {
+      return innerRole;
+    }
+  }
+
+  const classList = node.className || "";
+  if (/(user|me|query|question)/i.test(classList)) {
+    return userRole;
+  }
+  if (/(assistant|bot|ai|response|answer)/i.test(classList)) {
+    return assistantRole;
+  }
+
+  if (node.querySelector('img[alt*="User" i], svg[aria-label*="User" i]')) {
+    return userRole;
+  }
+  if (node.querySelector('img[alt*="AI" i], img[alt*="Assistant" i], svg[aria-label*="AI" i], svg[aria-label*="Assistant" i]')) {
+    return assistantRole;
+  }
+
+  return "unknown";
+};
+
+const getPlatformConversationNodes = () => {
+  const main = getMainContainer();
+  if (!main) {
+    return [];
+  }
+
+  const selectors = getPlatformTurnContainerSelectors();
+  const candidates = [];
+  selectors.forEach((selector) => {
+    candidates.push(...Array.from(main.querySelectorAll(selector)));
+  });
+
+  const normalized = sortElementsByDomOrder(
+    uniqueElements(candidates.map((node) => normalizeMessageElement(node)).filter(Boolean))
+  );
+
+  const conversationKey = getConversationKeyForSelectors();
+  const filteredByConversation = (() => {
+    if (!conversationKey) {
+      return normalized;
+    }
+    const scoped = normalized.filter((node) => {
+      const nodeConversationId = getMessageConversationIdFromDom(node);
+      return !nodeConversationId || nodeConversationId === conversationKey;
+    });
+    return scoped.length > 0 ? scoped : normalized;
+  })();
+
+  const uniqueNodes = sortElementsByDomOrder(uniqueElements(filteredByConversation));
+  assignSyntheticTurnKeys(uniqueNodes, conversationKey);
+  return uniqueNodes;
+};
+
+if (typeof window !== "undefined") {
+  window.detectPlatform = detectPlatform;
+  window.getCurrentPlatform = getCurrentPlatform;
+  window.getPlatformConfig = getPlatformConfig;
+  window.isSupportedPlatform = isSupportedPlatform;
+  window.getPlatformTurnContainerSelectors = getPlatformTurnContainerSelectors;
+  window.getPlatformMessageContentSelectors = getPlatformMessageContentSelectors;
+  window.getPlatformComposerSelectors = getPlatformComposerSelectors;
+  window.getPlatformSendButtonSelectors = getPlatformSendButtonSelectors;
+  window.getPlatformComposerElement = getPlatformComposerElement;
+  window.getPlatformSendButtonElement = getPlatformSendButtonElement;
+  window.getPlatformMessageRoleFromNode = getPlatformMessageRoleFromNode;
+  window.getPlatformConversationNodes = getPlatformConversationNodes;
+}
