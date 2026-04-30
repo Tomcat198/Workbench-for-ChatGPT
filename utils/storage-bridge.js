@@ -364,3 +364,478 @@ const savePromptBehaviorSettings = (nextSettings) => {
   }
   return normalized;
 };
+
+const ENCRYPTION_KEY_PREFIX = "tk_enc_";
+const BACKUP_STORAGE_KEY = "chatgpt-toolkit-backup-v1";
+const BACKUP_HISTORY_KEY = "chatgpt-toolkit-backup-history-v1";
+
+const generateDeviceFingerprint = () => {
+  try {
+    const screenInfo = `${screen.width}x${screen.height}x${screen.colorDepth}`;
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const language = navigator.language;
+    const platform = navigator.platform;
+    const vendor = navigator.vendor;
+    const maxTouchPoints = navigator.maxTouchPoints || 0;
+
+    const raw = `${screenInfo}|${timeZone}|${language}|${platform}|${vendor}|${maxTouchPoints}`;
+    let hash = 0;
+    for (let i = 0; i < raw.length; i++) {
+      const char = raw.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    return Math.abs(hash).toString(36);
+  } catch (error) {
+    return "default_fp";
+  }
+};
+
+const simpleXorEncrypt = (text, key) => {
+  if (!text || !key) {
+    return text;
+  }
+  const keyStr = String(key);
+  let result = "";
+  for (let i = 0; i < text.length; i++) {
+    const charCode = text.charCodeAt(i);
+    const keyCharCode = keyStr.charCodeAt(i % keyStr.length);
+    result += String.fromCharCode(charCode ^ keyCharCode);
+  }
+  return result;
+};
+
+const simpleXorDecrypt = (text, key) => {
+  return simpleXorEncrypt(text, key);
+};
+
+const encodeForStorage = (data) => {
+  try {
+    const jsonStr = JSON.stringify(data);
+    const fingerprint = generateDeviceFingerprint();
+    const encrypted = simpleXorEncrypt(jsonStr, fingerprint);
+    const base64Encoded = btoa(encodeURIComponent(encrypted));
+    return `${ENCRYPTION_KEY_PREFIX}${base64Encoded}`;
+  } catch (error) {
+    console.warn("[Storage] Encryption failed, storing as plain text:", error);
+    return JSON.stringify(data);
+  }
+};
+
+const decodeFromStorage = (encoded) => {
+  if (!encoded) {
+    return null;
+  }
+
+  if (encoded.startsWith(ENCRYPTION_KEY_PREFIX)) {
+    try {
+      const base64Part = encoded.slice(ENCRYPTION_KEY_PREFIX.length);
+      const decodedBase64 = decodeURIComponent(atob(base64Part));
+      const fingerprint = generateDeviceFingerprint();
+      const decrypted = simpleXorDecrypt(decodedBase64, fingerprint);
+      return JSON.parse(decrypted);
+    } catch (error) {
+      console.warn("[Storage] Decryption failed, trying fallback:", error);
+    }
+  }
+
+  try {
+    return JSON.parse(encoded);
+  } catch (error) {
+    console.warn("[Storage] Parse failed:", error);
+    return null;
+  }
+};
+
+const getAllStorageKeys = () => {
+  return [
+    SETTINGS_STORAGE_KEY,
+    TOOLBAR_POSITION_KEY,
+    MINIMIZED_POSITION_V2_KEY,
+    POSITION_KEY,
+    TIMELINE_VISIBLE_KEY,
+    TIMELINE_POSITION_KEY,
+    FOLDER_LOCAL_FALLBACK_KEY,
+    FOLDER_STORAGE_KEY,
+    PROMPT_STORAGE_KEY,
+    PROMPT_LOCAL_FALLBACK_KEY,
+    PROMPT_PANEL_POSITION_KEY,
+    PROMPT_BEHAVIOR_STORAGE_KEY,
+    PROMPT_DRAFT_STORAGE_KEY,
+    PROMPT_COMBO_STORAGE_KEY,
+    PROMPT_TAGS_STORAGE_KEY,
+    PROMPT_OPERATION_LOG_KEY,
+    CONVERSATION_STATS_STORAGE_KEY,
+    TOPIC_GROUPS_STORAGE_KEY,
+    CONVERSATION_SUMMARY_STORAGE_KEY,
+    LANGUAGE_PREFERENCE_KEY,
+  ];
+};
+
+const createFullBackup = () => {
+  const backup = {
+    version: 1,
+    createdAt: new Date().toISOString(),
+    timestamp: Date.now(),
+    data: {},
+    metadata: {
+      userAgent: navigator.userAgent,
+      language: navigator.language,
+      platform: navigator.platform,
+    },
+  };
+
+  const keys = getAllStorageKeys();
+  keys.forEach((key) => {
+    try {
+      const value = localStorage.getItem(key);
+      if (value !== null) {
+        backup.data[key] = value;
+      }
+    } catch (error) {
+      console.warn(`[Backup] Failed to read key: ${key}`, error);
+    }
+  });
+
+  return backup;
+};
+
+const saveBackupToStorage = (backup) => {
+  try {
+    const encoded = encodeForStorage(backup);
+    localStorage.setItem(BACKUP_STORAGE_KEY, encoded);
+
+    let history = [];
+    try {
+      const rawHistory = localStorage.getItem(BACKUP_HISTORY_KEY);
+      if (rawHistory) {
+        history = decodeFromStorage(rawHistory) || [];
+      }
+    } catch (error) {
+      history = [];
+    }
+
+    history.unshift({
+      timestamp: backup.timestamp,
+      createdAt: backup.createdAt,
+      itemCount: Object.keys(backup.data).length,
+    });
+
+    if (history.length > 10) {
+      history = history.slice(0, 10);
+    }
+
+    const encodedHistory = encodeForStorage(history);
+    localStorage.setItem(BACKUP_HISTORY_KEY, encodedHistory);
+
+    logPromptOperation("backup-create", { timestamp: backup.timestamp });
+
+    return true;
+  } catch (error) {
+    console.error("[Backup] Failed to save backup:", error);
+    return false;
+  }
+};
+
+const loadBackupFromStorage = () => {
+  try {
+    const encoded = localStorage.getItem(BACKUP_STORAGE_KEY);
+    if (!encoded) {
+      return null;
+    }
+    return decodeFromStorage(encoded);
+  } catch (error) {
+    console.error("[Backup] Failed to load backup:", error);
+    return null;
+  }
+};
+
+const restoreFromBackup = (backup, options = {}) => {
+  if (!backup || !backup.data) {
+    return { success: false, error: "Invalid backup" };
+  }
+
+  const { clearExisting = true } = options;
+  const restoredKeys = [];
+  const failedKeys = [];
+
+  if (clearExisting) {
+    const keys = getAllStorageKeys();
+    keys.forEach((key) => {
+      try {
+        localStorage.removeItem(key);
+      } catch (error) {
+        console.warn(`[Restore] Failed to clear key: ${key}`, error);
+      }
+    });
+  }
+
+  Object.entries(backup.data).forEach(([key, value]) => {
+    try {
+      localStorage.setItem(key, value);
+      restoredKeys.push(key);
+    } catch (error) {
+      console.error(`[Restore] Failed to restore key: ${key}`, error);
+      failedKeys.push(key);
+    }
+  });
+
+  logPromptOperation("backup-restore", {
+    restoredCount: restoredKeys.length,
+    failedCount: failedKeys.length,
+  });
+
+  return {
+    success: true,
+    restoredKeys,
+    failedKeys,
+    restoredCount: restoredKeys.length,
+    failedCount: failedKeys.length,
+  };
+};
+
+const exportBackupToFile = () => {
+  const backup = createFullBackup();
+  if (!backup) {
+    return null;
+  }
+
+  const jsonStr = JSON.stringify(backup, null, 2);
+  const blob = new Blob([jsonStr], { type: "application/json" });
+  const dateTag = new Date().toISOString().replace(/[:.]/g, "-");
+  const filename = `chatgpt-toolkit-backup-${dateTag}.json`;
+
+  try {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+    logPromptOperation("backup-export", { filename });
+    return { success: true, filename };
+  } catch (error) {
+    console.error("[Export] Failed to export backup:", error);
+    return { success: false, error: error.message };
+  }
+};
+
+const importBackupFromFile = async (file) => {
+  if (!file) {
+    return { success: false, error: "No file provided" };
+  }
+
+  try {
+    const content = await file.text();
+    const backup = JSON.parse(content);
+
+    if (!backup || !backup.data) {
+      return { success: false, error: "Invalid backup file format" };
+    }
+
+    const result = restoreFromBackup(backup, { clearExisting: true });
+
+    logPromptOperation("backup-import", {
+      filename: file.name,
+      restoredCount: result.restoredCount,
+    });
+
+    return result;
+  } catch (error) {
+    console.error("[Import] Failed to import backup:", error);
+    return { success: false, error: error.message };
+  }
+};
+
+const detectStorageIssues = () => {
+  const issues = [];
+
+  if (typeof localStorage === "undefined") {
+    issues.push({
+      type: "critical",
+      code: "localstorage-unavailable",
+      message: "localStorage 不可用",
+      severity: "high",
+    });
+    return issues;
+  }
+
+  try {
+    const testKey = "__tk_storage_test__";
+    localStorage.setItem(testKey, "test");
+    localStorage.removeItem(testKey);
+  } catch (error) {
+    issues.push({
+      type: "critical",
+      code: "localstorage-readonly",
+      message: "localStorage 处于只读状态",
+      severity: "high",
+    });
+  }
+
+  const keys = getAllStorageKeys();
+  keys.forEach((key) => {
+    try {
+      const value = localStorage.getItem(key);
+      if (value !== null) {
+        try {
+          JSON.parse(value);
+        } catch (parseError) {
+          if (!value.startsWith(ENCRYPTION_KEY_PREFIX)) {
+            issues.push({
+              type: "warning",
+              code: "corrupted-json",
+              message: `存储键 ${key} 包含损坏的 JSON 数据`,
+              key,
+              severity: "medium",
+            });
+          }
+        }
+      }
+    } catch (error) {
+      issues.push({
+        type: "error",
+        code: "read-error",
+        message: `无法读取存储键 ${key}`,
+        key,
+        severity: "high",
+      });
+    }
+  });
+
+  try {
+    const usedBytes = new Blob(Object.values(localStorage)).size;
+    const quotaEstimate = 5 * 1024 * 1024;
+    if (usedBytes > quotaEstimate * 0.8) {
+      issues.push({
+        type: "warning",
+        code: "storage-full",
+        message: `存储空间使用超过 80% (约 ${(usedBytes / 1024).toFixed(1)}KB)`,
+        usedBytes,
+        severity: "medium",
+      });
+    }
+  } catch (error) {
+    // Ignore size check errors
+  }
+
+  return issues;
+};
+
+const repairStorageIssues = async (issues) => {
+  const repairs = [];
+
+  if (!Array.isArray(issues) || issues.length === 0) {
+    return { success: true, repairs: [], message: "没有需要修复的问题" };
+  }
+
+  const existingBackup = loadBackupFromStorage();
+  if (!existingBackup) {
+    const newBackup = createFullBackup();
+    saveBackupToStorage(newBackup);
+    repairs.push({
+      action: "create-backup",
+      message: "创建安全备份",
+      success: true,
+    });
+  }
+
+  issues.forEach((issue) => {
+    if (issue.code === "corrupted-json" && issue.key) {
+      try {
+        const key = issue.key;
+        const value = localStorage.getItem(key);
+
+        let defaultValue = null;
+        if (key === SETTINGS_STORAGE_KEY) {
+          defaultValue = { ...DEFAULT_SETTINGS };
+        } else if (key === PROMPT_BEHAVIOR_STORAGE_KEY) {
+          defaultValue = { ...DEFAULT_PROMPT_BEHAVIOR_SETTINGS };
+        } else if (key === PROMPT_STORAGE_KEY || key === PROMPT_LOCAL_FALLBACK_KEY) {
+          defaultValue = buildPromptStoragePayload([]);
+        }
+
+        if (defaultValue !== null) {
+          localStorage.setItem(key, JSON.stringify(defaultValue));
+          repairs.push({
+            action: "reset-key",
+            key,
+            message: `重置损坏的配置键: ${key}`,
+            success: true,
+          });
+        }
+      } catch (error) {
+        repairs.push({
+          action: "reset-key",
+          key: issue.key,
+          message: `重置 ${issue.key} 失败`,
+          success: false,
+          error: error.message,
+        });
+      }
+    }
+  });
+
+  logPromptOperation("storage-repair", {
+    issueCount: issues.length,
+    repairCount: repairs.length,
+  });
+
+  return {
+    success: true,
+    repairs,
+    issueCount: issues.length,
+    repairCount: repairs.length,
+  };
+};
+
+const getBackupHistory = () => {
+  try {
+    const rawHistory = localStorage.getItem(BACKUP_HISTORY_KEY);
+    if (!rawHistory) {
+      return [];
+    }
+    return decodeFromStorage(rawHistory) || [];
+  } catch (error) {
+    console.error("[Backup] Failed to get backup history:", error);
+    return [];
+  }
+};
+
+const clearAllData = () => {
+  const backup = createFullBackup();
+  saveBackupToStorage(backup);
+
+  const keys = getAllStorageKeys();
+  keys.forEach((key) => {
+    try {
+      localStorage.removeItem(key);
+    } catch (error) {
+      console.warn(`[Clear] Failed to remove key: ${key}`, error);
+    }
+  });
+
+  logPromptOperation("data-clear", { backupCreated: true });
+
+  return { success: true, backupCreated: true };
+};
+
+if (typeof window !== "undefined") {
+  window.generateDeviceFingerprint = generateDeviceFingerprint;
+  window.encodeForStorage = encodeForStorage;
+  window.decodeFromStorage = decodeFromStorage;
+  window.createFullBackup = createFullBackup;
+  window.saveBackupToStorage = saveBackupToStorage;
+  window.loadBackupFromStorage = loadBackupFromStorage;
+  window.restoreFromBackup = restoreFromBackup;
+  window.exportBackupToFile = exportBackupToFile;
+  window.importBackupFromFile = importBackupFromFile;
+  window.detectStorageIssues = detectStorageIssues;
+  window.repairStorageIssues = repairStorageIssues;
+  window.getBackupHistory = getBackupHistory;
+  window.clearAllData = clearAllData;
+  window.getAllStorageKeys = getAllStorageKeys;
+}
