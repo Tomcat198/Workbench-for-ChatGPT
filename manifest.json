@@ -64,30 +64,7 @@
         "image/icon_48.png",
         "image/icon_32.png"
       ],
-      "matches": [
-        "https://chat.openai.com",
-        "https://chatgpt.com",
-        "https://www.doubao.com",
-        "https://doubao.com",
-        "https://chat.deepseek.com",
-        "https://deepseek.com",
-        "https://tongyi.aliyun.com",
-        "https://qianwen.aliyun.com",
-        "https://kimi.moonshot.cn",
-        "https://www.moonshot.cn",
-        "https://yiyan.baidu.com",
-        "https://chatglm.cn",
-        "https://www.chatglm.cn",
-        "https://xinghuo.xfyun.cn",
-        "https://www.xinghuo.xfyun.cn",
-        "https://claude.ai",
-        "https://poe.com",
-        "https://www.poe.com",
-        "https://chat.coze.cn",
-        "https://www.coze.cn",
-        "https://huggingface.co",
-        "https://www.huggingface.co"
-      ]
+      "matches": ["<all_urls>"]
     }
   ],
   "permissions": [
